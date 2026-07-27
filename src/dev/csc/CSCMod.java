@@ -8,6 +8,6 @@ public class CSCMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        System.out.println("[CSC] Clientside Chat v1.4.0 (ECDH & Ed25519 Cryptographic Architecture) loaded.");
+        System.out.println("[CSC] Clientside Chat v1.4.1 (Public Key Pinning & ECDH) loaded.");
     }
 }
