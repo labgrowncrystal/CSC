@@ -21,6 +21,17 @@ public class RelayConnection {
         this.callback = callback;
     }
 
+    /**
+     * Isolated Key Pinning Verification logic used by both live connections and unit test suites.
+     * @return true if the received server public key matches the expected pinned key (or if no key pinning is required).
+     */
+    public static boolean verifyKeyPinning(String serverPubKey, String expectedHostPubKey) {
+        if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
+            return CryptoHelper.constantTimeEquals(serverPubKey, expectedHostPubKey);
+        }
+        return true;
+    }
+
     public CompletableFuture<Boolean> connectWithFallback(String publicHost, String lanHost, int port, String name, String password, String expectedHostPubKey) {
         return CompletableFuture.supplyAsync(() -> {
             if (publicHost != null && !publicHost.isEmpty()) {
@@ -75,13 +86,14 @@ public class RelayConnection {
                 return false;
             }
 
+            // ─── Cryptographic Key Pinning Verification ─────────────────────
+            if (!verifyKeyPinning(serverPubKey, expectedHostPubKey)) {
+                LoggerHelper.error("ClientConnection", "SECURITY ALERT: Man-in-the-Middle (MitM) Attempt Detected! Server Public Key does not match Token Key Pinning!");
+                callback.onEvent("mitm_error", "", "");
+                disconnect();
+                return false;
+            }
             if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
-                if (!CryptoHelper.constantTimeEquals(serverPubKey, expectedHostPubKey)) {
-                    LoggerHelper.error("ClientConnection", "SECURITY ALERT: Man-in-the-Middle (MitM) Attempt Detected! Server Public Key does not match Token Key Pinning!");
-                    callback.onEvent("mitm_error", "", "");
-                    disconnect();
-                    return false;
-                }
                 LoggerHelper.info("ClientConnection", "✔ Host Public Key Pinning Verified Successfully!");
             }
 

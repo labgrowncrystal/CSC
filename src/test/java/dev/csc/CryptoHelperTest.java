@@ -2,6 +2,7 @@ package dev.csc;
 
 import dev.csc.client.CryptoHelper;
 import dev.csc.client.ECDHHelper;
+import dev.csc.client.RelayConnection;
 import org.junit.jupiter.api.Test;
 import javax.crypto.SecretKey;
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,10 +58,10 @@ public class CryptoHelperTest {
         ECDHHelper.ECDHKeyPair mitmAttacker = ECDHHelper.generateKeyPair();
 
         String expectedPinnedKey = genuineHost.publicKeyBase64;
-        String receivedServerKey = mitmAttacker.publicKeyBase64;
+        String mitmKey = mitmAttacker.publicKeyBase64;
 
-        // Pinning verification MUST reject MitM key
-        boolean isLegit = CryptoHelper.constantTimeEquals(receivedServerKey, expectedPinnedKey);
-        assertFalse(isLegit, "MitM Key substitution MUST be rejected by constantTimeEquals key pinning!");
+        // Directly tests RelayConnection.verifyKeyPinning production logic!
+        assertFalse(RelayConnection.verifyKeyPinning(mitmKey, expectedPinnedKey), "RelayConnection.verifyKeyPinning MUST return false for MitM key!");
+        assertTrue(RelayConnection.verifyKeyPinning(expectedPinnedKey, expectedPinnedKey), "RelayConnection.verifyKeyPinning MUST return true for genuine host key!");
     }
 }
