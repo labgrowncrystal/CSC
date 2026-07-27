@@ -4,7 +4,12 @@
 	"version": "${version}",
 	"name": "Clientside Chat (CSC)",
 	"description": "Server-Admin Private P2P Messaging for Minecraft — Zero server-side plugins or external web servers required. Features ECDH Key Exchange, AES-256-GCM E2EE, Host Key Pinning, Audio Feedback, Whispering & Bookmarks.",
-	"authors": ["WantingHades901", "LabGrownCrystal"],
+	"authors": [
+		"labgrownmango",
+		"labgrowncrystal",
+		"Mango_LD",
+		"WantingHades901"
+	],
 	"contact": {
 		"homepage": "https://github.com/labgrowncrystal/CSC",
 		"sources": "https://github.com/labgrowncrystal/CSC",
@@ -27,7 +32,8 @@
 		"modmenu": {
 			"badges": ["client"],
 			"links": {
-				"modmenu.github": "https://github.com/labgrowncrystal/CSC"
+				"modmenu.github": "https://github.com/labgrowncrystal/CSC",
+				"modmenu.issues": "https://github.com/labgrowncrystal/CSC/issues"
 			}
 		}
 	}
