@@ -10,8 +10,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.5.2 Session Integrity & Anti-Impersonation Edition
+ * Hardened P2P TCP Relay Server v1.5.3 Authenticated Name Uniqueness Edition
  * Features:
+ *   - Password-First Authentication (Prevents unauthenticated name-enumeration leaks)
  *   - Name Uniqueness Check (Prevents name spoofing / impersonation within a session)
  *   - Active Session Expiration Kick (Disconnects existing clients once expiresAt is reached)
  *   - Spam Rate Limit Escalation (Kicks clients after 5 consecutive spam violations)
@@ -214,14 +215,7 @@ public class RelayServer {
                     return;
                 }
 
-                // 1. Name Uniqueness Check (Prevents name spoofing)
-                if (isNameTaken(n)) {
-                    sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Name already taken\"}");
-                    LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + anonIp + ": Name already taken in session");
-                    callback.onEvent("auth_fail", n, "Name already taken");
-                    return;
-                }
-
+                // 1. Password Verification (Executed FIRST to prevent name-enumeration leaks)
                 if (!passwordHash.isEmpty()) {
                     String providedPwHash = pw != null ? sha256(pw) : "";
                     if (!CryptoHelper.constantTimeEquals(passwordHash, providedPwHash)) {
@@ -239,6 +233,14 @@ public class RelayServer {
                         callback.onEvent("auth_fail", n, "Wrong password");
                         return;
                     }
+                }
+
+                // 2. Name Uniqueness Check (Executed ONLY AFTER valid password verification)
+                if (isNameTaken(n)) {
+                    sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Name already taken\"}");
+                    LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + anonIp + ": Name already taken in session");
+                    callback.onEvent("auth_fail", n, "Name already taken");
+                    return;
                 }
 
                 failedAttempts.remove(remoteIp);
