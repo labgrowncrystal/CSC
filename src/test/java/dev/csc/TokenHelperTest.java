@@ -23,4 +23,29 @@ public class TokenHelperTest {
         assertEquals(5, parsed.maxClients);
         assertEquals(hostKeyPair.publicKeyBase64, parsed.hostPubKey);
     }
+
+    @Test
+    public void testTamperedTokenRejection() throws Exception {
+        ECDHHelper.ECDHKeyPair hostKeyPair = ECDHHelper.generateKeyPair();
+        String token = TokenHelper.generateToken("93.184.216.34", "192.168.1.100", 49156, 24, 5, hostKeyPair.publicKeyBase64);
+
+        // Tamper token payload string
+        String tamperedToken = token.substring(0, token.length() - 6) + "XXXXXX";
+
+        assertThrows(Exception.class, () -> {
+            TokenHelper.parseToken(tamperedToken);
+        }, "Tampered or corrupted session token MUST throw exception!");
+    }
+
+    @Test
+    public void testExpiredTokenRejection() throws Exception {
+        ECDHHelper.ECDHKeyPair hostKeyPair = ECDHHelper.generateKeyPair();
+
+        // Generate token expired -1 hour ago
+        String expiredToken = TokenHelper.generateToken("93.184.216.34", "192.168.1.100", 49156, -1, 5, hostKeyPair.publicKeyBase64);
+
+        assertThrows(IllegalStateException.class, () -> {
+            TokenHelper.parseToken(expiredToken);
+        }, "Expired session token MUST throw IllegalStateException!");
+    }
 }
