@@ -7,8 +7,11 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -19,20 +22,25 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.6.0 Ultra-Compact Token & Command Alias Edition
+ * CSC — Clientside Chat v1.7.0 Audio Feedback & Modern Chat Badge Edition
  *
- * Ultra-compact Session Tokens (~130 chars) easily fit within Minecraft's 256 char chat limit.
- * /csc join and /csc connect are unified aliases accepting both Tokens and IP addresses.
+ * Features:
+ *   - Notification Sounds & Mention Pings (@PlayerName)
+ *   - /csc sound [on|off] toggle command
+ *   - Modern UI Chat Badges & Interactive [COPY TOKEN] button
+ *   - Ultra-compact Binary Tokens (~147 chars)
+ *   - Unified /csc join & /csc connect command aliases
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
     private static RelayConnection connection;
     private static String myName = "";
     private static String currentToken = "";
+    private static boolean soundEnabled = true;
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.6.0 (Ultra-Compact Tokens & Unified Commands)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.7.0 (Audio Feedback & Modern UI Badges)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -77,7 +85,6 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
-                // Unified /csc join command (handles both Tokens & IP addresses)
                 .then(ClientCommands.literal("join")
                     .then(ClientCommands.argument("target", StringArgumentType.string())
                         .executes(ctx -> {
@@ -95,7 +102,6 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
-                // Unified /csc connect command alias (handles both Tokens & IP addresses)
                 .then(ClientCommands.literal("connect")
                     .then(ClientCommands.argument("target", StringArgumentType.string())
                         .executes(ctx -> {
@@ -113,6 +119,30 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
+                .then(ClientCommands.literal("sound")
+                    .executes(ctx -> {
+                        soundEnabled = !soundEnabled;
+                        ctx.getSource().sendFeedback(Component.translatable(soundEnabled ? "csc.chat.sound_on" : "csc.chat.sound_off"));
+                        if (soundEnabled) playNotificationSound(false);
+                        return 1;
+                    })
+                    .then(ClientCommands.literal("on")
+                        .executes(ctx -> {
+                            soundEnabled = true;
+                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.sound_on"));
+                            playNotificationSound(false);
+                            return 1;
+                        })
+                    )
+                    .then(ClientCommands.literal("off")
+                        .executes(ctx -> {
+                            soundEnabled = false;
+                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.sound_off"));
+                            return 1;
+                        })
+                    )
+                )
+
                 .then(ClientCommands.literal("stop")
                     .executes(ctx -> { stopHost(ctx.getSource()); return 1; })
                 )
@@ -124,12 +154,7 @@ public class CSCClient implements ClientModInitializer {
                 .then(ClientCommands.literal("token")
                     .executes(ctx -> {
                         if (!currentToken.isEmpty()) {
-                            Component tokenComponent = Component.translatable("csc.chat.token_label", currentToken)
-                                .withStyle(Style.EMPTY.withClickEvent(
-                                    new ClickEvent.CopyToClipboard(currentToken)
-                                ));
-                            ctx.getSource().sendFeedback(tokenComponent);
-                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.token_sub"));
+                            sendTokenComponent(ctx.getSource(), currentToken);
                         } else {
                             ctx.getSource().sendError(Component.translatable("csc.chat.no_active_token"));
                         }
@@ -141,8 +166,9 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.6.0 Ultra-Compact] Status\n";
+                        String statusText = "§8[§d§lCSC v1.7.0§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
+                        statusText += "§7  Sounds: " + (soundEnabled ? "§a✔ Active 🔔" : "§c✘ Muted 🔕") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
                         statusText += "§7  Privacy Logs: §a✔ Anonymized & Masked\n";
@@ -165,7 +191,7 @@ public class CSCClient implements ClientModInitializer {
                 .then(ClientCommands.literal("logs")
                     .executes(ctx -> {
                         String logPath = LoggerHelper.getLogFile().toString();
-                        Component logComponent = Component.literal("§a[CSC] Log File: §f§n" + logPath)
+                        Component logComponent = Component.literal("§8[§d§lCSC§8] §aLog File: §f§n" + logPath)
                             .withStyle(Style.EMPTY.withClickEvent(
                                 new ClickEvent.CopyToClipboard(logPath)
                             ));
@@ -190,14 +216,14 @@ public class CSCClient implements ClientModInitializer {
 
                 if (connection != null && connection.isConnected()) {
                     connection.sendMessage(chatText);
-                    showChat("§d[CSC] You: §f" + chatText);
+                    showChat("§8[§d§lCSC§8] §dYou: §f" + chatText);
                     return false;
                 }
 
                 if (relayServer != null && relayServer.isRunning()) {
                     String outJson = "{\"type\":\"msg\",\"sender\":\"" + RelayServer.escapeJson(myName) + "\",\"text\":\"" + RelayServer.escapeJson(chatText) + "\"}";
                     broadcastFromHost(myName, outJson);
-                    showChat("§d[CSC] You: §f" + chatText);
+                    showChat("§8[§d§lCSC§8] §dYou: §f" + chatText);
                     return false;
                 }
 
@@ -209,9 +235,10 @@ public class CSCClient implements ClientModInitializer {
     }
 
     private static void sendHelp(FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§b§l").append(Component.translatable("csc.help.title")).append("\n")
+        source.sendFeedback(Component.literal("§8[§d§lCSC§8] §b").append(Component.translatable("csc.help.title")).append("\n")
             .append(Component.translatable("csc.help.host")).append("\n")
             .append(Component.translatable("csc.help.join")).append("\n")
+            .append(Component.translatable("csc.help.sound")).append("\n")
             .append(Component.translatable("csc.help.stop")).append("\n")
             .append(Component.translatable("csc.help.disconnect")).append("\n")
             .append(Component.translatable("csc.help.token")).append("\n")
@@ -254,9 +281,12 @@ public class CSCClient implements ClientModInitializer {
                 relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, finalMaxPlayers, expiresAt, hostKeyPair, (type, sender, text) -> {
                     Minecraft.getInstance().execute(() -> {
                         switch (type) {
-                            case "connected" -> showComponent(Component.translatable("csc.chat.joined", sender));
+                            case "connected" -> {
+                                showComponent(Component.translatable("csc.chat.joined", sender));
+                                playNotificationSound(false);
+                            }
                             case "disconnected" -> showComponent(Component.translatable("csc.chat.left", sender));
-                            case "msg" -> showChat("§d[CSC] " + sender + ": §f" + text);
+                            case "msg" -> handleIncomingChatMessage(sender, text);
                             case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                         }
                     });
@@ -268,23 +298,60 @@ public class CSCClient implements ClientModInitializer {
 
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
-                    
-                    Component tokenComponent = Component.literal("§a[CSC] ")
-                        .append(Component.translatable("csc.chat.token_label", currentToken))
-                        .withStyle(Style.EMPTY.withClickEvent(
-                            new ClickEvent.CopyToClipboard(currentToken)
-                        ));
-                    source.sendFeedback(tokenComponent);
-                    source.sendFeedback(Component.translatable("csc.chat.token_sub"));
+                    sendTokenComponent(source, currentToken);
+                    playNotificationSound(false);
                 });
 
             } catch (Exception e) {
                 LoggerHelper.error("CSCClient", "Failed to start host: " + e.getMessage());
                 Minecraft.getInstance().execute(() -> {
-                    source.sendError(Component.literal("§c[CSC] Error starting host: " + e.getMessage()));
+                    source.sendError(Component.literal("§8[§d§lCSC§8] §cError starting host: " + e.getMessage()));
                 });
             }
         }, "CSC-Host-Init").start();
+    }
+
+    private static void sendTokenComponent(FabricClientCommandSource source, String token) {
+        Component tokenText = Component.literal("§8[§d§lCSC§8] ")
+            .append(Component.translatable("csc.chat.token_label", token));
+        source.sendFeedback(tokenText);
+
+        Component button = Component.literal("§8[§d§lCSC§8] §a§l")
+            .append(Component.translatable("csc.chat.token_copy_btn")
+                .withStyle(Style.EMPTY
+                    .withColor(0x55FF55)
+                    .withBold(true)
+                    .withClickEvent(new ClickEvent.CopyToClipboard(token))
+                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("§eClick to copy Token to Clipboard")))
+                )
+            );
+        source.sendFeedback(button);
+        source.sendFeedback(Component.translatable("csc.chat.token_sub"));
+    }
+
+    private static void handleIncomingChatMessage(String sender, String text) {
+        boolean isMention = !myName.isEmpty() && (text.contains("@" + myName) || text.contains(myName));
+        if (isMention) {
+            showChat("§8[§d§lCSC§8] §e§l" + sender + " (Mention): §f" + text);
+            playNotificationSound(true);
+        } else {
+            showChat("§8[§d§lCSC§8] §d" + sender + ": §f" + text);
+            playNotificationSound(false);
+        }
+    }
+
+    private static void playNotificationSound(boolean isMention) {
+        if (!soundEnabled) return;
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.getSoundManager() != null) {
+                if (isMention) {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_CHIME.value(), 1.6F));
+                } else {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BELL.value(), 1.2F));
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private static void stopHost(FabricClientCommandSource source) {
@@ -305,10 +372,6 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    /**
-     * Unified handler for both /csc join and /csc connect.
-     * Automatically differentiates between a Session Token (CSC-...) and a raw IP address / Hostname.
-     */
     private static void handleJoinOrConnect(FabricClientCommandSource source, String target, String password) {
         target = target.trim();
         if (target.startsWith("CSC-") || target.length() > 50) {
@@ -351,13 +414,16 @@ public class CSCClient implements ClientModInitializer {
         connection = new RelayConnection((type, sender, text) -> {
             Minecraft.getInstance().execute(() -> {
                 switch (type) {
-                    case "connected" -> showComponent(Component.translatable("csc.chat.connected"));
-                    case "msg" -> showChat("§d[CSC] " + sender + ": §f" + text);
-                    case "system" -> showChat("§e[CSC] " + text);
+                    case "connected" -> {
+                        showComponent(Component.translatable("csc.chat.connected"));
+                        playNotificationSound(false);
+                    }
+                    case "msg" -> handleIncomingChatMessage(sender, text);
+                    case "system" -> showChat("§8[§d§lCSC§8] §e" + text);
                     case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
                     case "mitm_error" -> showComponent(Component.translatable("csc.chat.mitm_alert"));
-                    case "error" -> showChat("§c[CSC] " + text);
+                    case "error" -> showChat("§8[§d§lCSC§8] §c" + text);
                 }
             });
         });
@@ -395,7 +461,7 @@ public class CSCClient implements ClientModInitializer {
                 String ip = response.body().trim();
 
                 Minecraft.getInstance().execute(() -> {
-                    Component ipComponent = Component.literal("§a[CSC] ")
+                    Component ipComponent = Component.literal("§8[§d§lCSC§8] ")
                         .append(Component.translatable("csc.chat.ip_label", ip))
                         .withStyle(Style.EMPTY.withClickEvent(
                             new ClickEvent.CopyToClipboard(ip)

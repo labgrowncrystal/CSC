@@ -1,10 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Commands Overview",
   "csc.help.host": "/csc host [password] [max_players] [hours] — Host a server & generate Session Token",
-  "csc.help.join": "/csc join <token> — Join anonymously via Session Token (Key Pinning & E2EE)",
+  "csc.help.join": "/csc join <token|ip> [password] — Join via Session Token or IP",
   "csc.help.stop": "/csc stop — Stop hosting your server",
   "csc.help.disconnect": "/csc disconnect — Disconnect from current server",
   "csc.help.token": "/csc token — Show your active Session Token",
+  "csc.help.sound": "/csc sound [on|off] — Toggle notification sounds and mention pings",
   "csc.help.status": "/csc status — Show hosting, ECDH & log status",
   "csc.help.logs": "/csc logs — Show log file location",
   "csc.help.ip": "/ip [get] — Show your public IP",
@@ -20,8 +21,12 @@
   "csc.chat.not_hosting": "Not hosting currently.",
   "csc.chat.host_started": "✔ Server started! (ECDH + AES-256-GCM E2EE, Max. %d players, %dh valid)",
   "csc.chat.token_label": "Session Token: %s",
-  "csc.chat.token_sub": "(Click to copy. ECDH Key Exchange & Key Pinned E2EE!)",
+  "csc.chat.token_sub": "(Click button below to copy. Key Pinned & E2EE!)",
+  "csc.chat.token_copy_btn": "[ COPY TOKEN ]",
   "csc.chat.ip_label": "Your public IP: %s",
+
+  "csc.chat.sound_on": "✔ Notification sounds and mention pings ENABLED 🔔",
+  "csc.chat.sound_off": "✘ Notification sounds DISABLED 🔕",
 
   "csc.chat.connecting": "Connecting via ECDH with Key Pinning...",
   "csc.chat.connect_fail": "Connection failed.",

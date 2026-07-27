@@ -1,10 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Comandos",
   "csc.help.host": "/csc host [contraseña] [max_jugadores] [horas] — Crear servidor y generar Token",
-  "csc.help.join": "/csc join <token> — Unirse mediante Token (Key Pinning & E2EE)",
+  "csc.help.join": "/csc join <token|ip> [contraseña] — Unirse mediante Token o IP",
   "csc.help.stop": "/csc stop — Detener servidor",
   "csc.help.disconnect": "/csc disconnect — Desconectarse",
   "csc.help.token": "/csc token — Mostrar Token activo",
+  "csc.help.sound": "/csc sound [on|off] — Activar/desactivar sonidos de notificación",
   "csc.help.status": "/csc status — Estado del servidor y E2EE",
   "csc.help.logs": "/csc logs — Mostrar ruta de archivos de registro",
   "csc.help.ip": "/ip [get] — Mostrar tu IP pública",
@@ -20,8 +21,12 @@
   "csc.chat.not_hosting": "No estás alojando actualmente.",
   "csc.chat.host_started": "✔ Servidor iniciado (AES-256-GCM E2EE, Máx. %d jugadores, %dh válido)",
   "csc.chat.token_label": "Token de sesión: %s",
-  "csc.chat.token_sub": "(Haz clic para copiar. ¡Encriptado de extremo a extremo!)",
+  "csc.chat.token_sub": "(Haz clic en el botón de abajo para copiar.)",
+  "csc.chat.token_copy_btn": "[ COPIAR TOKEN ]",
   "csc.chat.ip_label": "Tu IP pública: %s",
+
+  "csc.chat.sound_on": "✔ Sonidos de notificación ACTIVADOS 🔔",
+  "csc.chat.sound_off": "✘ Sonidos de notificación DESACTIVADOS 🔕",
 
   "csc.chat.connecting": "Conectando mediante ECDH con Key Pinning...",
   "csc.chat.connect_fail": "Conexión fallida.",

@@ -1,10 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Список команд",
   "csc.help.host": "/csc host [пароль] [макс_игроков] [часы] — Создать сервер и сгенерировать Токен",
-  "csc.help.join": "/csc join <токен> — Подключиться по Токену (Key Pinning & E2EE)",
+  "csc.help.join": "/csc join <токен|ip> [пароль] — Подключиться по Токену или IP",
   "csc.help.stop": "/csc stop — Остановить сервер",
   "csc.help.disconnect": "/csc disconnect — Отключиться",
   "csc.help.token": "/csc token — Показать активный Токен",
+  "csc.help.sound": "/csc sound [on|off] — Включить/выключить звуки уведомлений",
   "csc.help.status": "/csc status — Статус подключения и E2EE",
   "csc.help.logs": "/csc logs — Показать путь к логам",
   "csc.help.ip": "/ip [get] — Показать ваш публичный IP",
@@ -20,8 +21,12 @@
   "csc.chat.not_hosting": "Вы не создавали сервер.",
   "csc.chat.host_started": "✔ Сервер запущен (AES-256-GCM E2EE, Макс. %d игроков, %dh)",
   "csc.chat.token_label": "Токен сессии: %s",
-  "csc.chat.token_sub": "(Нажмите для копирования. Сквозное шифрование!)",
+  "csc.chat.token_sub": "(Нажмите кнопку ниже для копирования.)",
+  "csc.chat.token_copy_btn": "[ КОПИРОВАТЬ ТОКЕН ]",
   "csc.chat.ip_label": "Ваш публичный IP: %s",
+
+  "csc.chat.sound_on": "✔ Звуки уведомлений ВКЛЮЧЕНЫ 🔔",
+  "csc.chat.sound_off": "✘ Звуки уведомлений ВЫКЛЮЧЕНЫ 🔕",
 
   "csc.chat.connecting": "Подключение через ECDH с Key Pinning...",
   "csc.chat.connect_fail": "Ошибка подключения.",

@@ -1,10 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Commandes",
   "csc.help.host": "/csc host [mot_de_passe] [max_joueurs] [heures] — Héberger un serveur & générer Token",
-  "csc.help.join": "/csc join <token> — Rejoindre anonymement via Token (Key Pinning & E2EE)",
+  "csc.help.join": "/csc join <token|ip> [mot_de_passe] — Rejoindre via Token ou IP",
   "csc.help.stop": "/csc stop — Arrêter l'hébergement",
   "csc.help.disconnect": "/csc disconnect — Se déconnecter",
   "csc.help.token": "/csc token — Afficher le Token actif",
+  "csc.help.sound": "/csc sound [on|off] — Activer/désactiver les sons de notification",
   "csc.help.status": "/csc status — Afficher l'état du serveur et E2EE",
   "csc.help.logs": "/csc logs — Afficher le chemin des fichiers journaux",
   "csc.help.ip": "/ip [get] — Afficher votre IP publique",
@@ -20,8 +21,12 @@
   "csc.chat.not_hosting": "Vous n'hébergez pas actuellement.",
   "csc.chat.host_started": "✔ Serveur démarré (AES-256-GCM E2EE, Max. %d joueurs, %dh valide)",
   "csc.chat.token_label": "Jeton de session : %s",
-  "csc.chat.token_sub": "(Cliquez pour copier. Chiffré de bout en bout !)",
+  "csc.chat.token_sub": "(Cliquez sur le bouton ci-dessous pour copier.)",
+  "csc.chat.token_copy_btn": "[ COPIER LE JETON ]",
   "csc.chat.ip_label": "Votre IP publique : %s",
+
+  "csc.chat.sound_on": "✔ Sons de notification ACTIVÉS 🔔",
+  "csc.chat.sound_off": "✘ Sons de notification DÉSACTIVÉS 🔕",
 
   "csc.chat.connecting": "Connexion via ECDH avec Key Pinning...",
   "csc.chat.connect_fail": "Échec de connexion.",
