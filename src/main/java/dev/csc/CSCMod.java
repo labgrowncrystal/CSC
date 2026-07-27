@@ -8,6 +8,6 @@ public class CSCMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        System.out.println("[CSC] Clientside Chat v1.10.0 (Visual Contrast & QoL Edition) loaded.");
+        System.out.println("[CSC] Clientside Chat v1.10.1 (Socket Timeout & Input Bounds Hardening) loaded.");
     }
 }

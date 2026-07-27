@@ -11,8 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.9.1 Security Clarity & Ban ID Edition
+ * Hardened P2P TCP Relay Server v1.10.1 (Socket Timeout & Input Bounds Hardening Edition)
  * Features:
+ *   - 10-Second Handshake Socket Timeout (prevents idle socket thread blocking)
+ *   - Message Length Caps (Max 500 chars per chat message to prevent UI flooding)
  *   - Unique Ban ID System (#1, #2...) for collision-free unbanning of anonymized IPs
  *   - Direct Private Whispering (whisper to specific players)
  *   - Client Name Listing (/csc list)
@@ -69,6 +71,7 @@ public class RelayServer {
             while (running) {
                 try {
                     Socket socket = serverSocket.accept();
+                    socket.setSoTimeout(10000); // 10s Handshake Timeout
                     String remoteIp = getRemoteIp(socket);
                     String anonIp = LoggerHelper.anonymizeIp(remoteIp);
 
@@ -157,6 +160,7 @@ public class RelayServer {
     }
 
     public boolean sendWhisper(String senderName, String targetName, String text) {
+        if (text != null && text.length() > 500) text = text.substring(0, 500);
         for (ClientHandler c : clients) {
             if (c.name.equalsIgnoreCase(targetName)) {
                 String outJson = "{\"type\":\"whisper\",\"sender\":\"" + escapeJson(senderName) + "\",\"target\":\"" + escapeJson(targetName) + "\",\"text\":\"" + escapeJson(text) + "\"}";
@@ -346,6 +350,7 @@ public class RelayServer {
                 this.name = n;
                 this.authenticated = true;
                 clients.add(this);
+                socket.setSoTimeout(0); // Reset timeout after successful auth
                 sendEncrypted("{\"type\":\"auth_ok\"}");
                 LoggerHelper.info("RelayServer", "Player '" + name + "' authenticated via ECDH from " + anonIp);
                 callback.onEvent("connected", name, "");
@@ -379,6 +384,7 @@ public class RelayServer {
                     if ("msg".equals(msgType)) {
                         String text = getField(decLine, "text");
                         if (text != null) {
+                            if (text.length() > 500) text = text.substring(0, 500); // 500 Char Cap
                             String outJson = "{\"type\":\"msg\",\"sender\":\"" + escapeJson(name) + "\",\"text\":\"" + escapeJson(text) + "\"}";
                             broadcast(name, outJson);
                             callback.onEvent("msg", name, text);
@@ -387,6 +393,7 @@ public class RelayServer {
                         String target = getField(decLine, "target");
                         String text = getField(decLine, "text");
                         if (target != null && text != null) {
+                            if (text.length() > 500) text = text.substring(0, 500); // 500 Char Cap
                             boolean sent = sendWhisper(name, target, text);
                             if (!sent) {
                                 sendEncrypted("{\"type\":\"system\",\"text\":\"Player '" + escapeJson(target) + "' not found in session.\"}");
