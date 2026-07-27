@@ -7,7 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened TCP client with ECDH Key Exchange and Encrypted Handshake.
+ * Hardened TCP client with ECDH Key Exchange, Encrypted Handshake, and Host Public Key Pinning.
  */
 public class RelayConnection {
     private Socket socket;
@@ -21,25 +21,25 @@ public class RelayConnection {
         this.callback = callback;
     }
 
-    public CompletableFuture<Boolean> connectWithFallback(String publicHost, String lanHost, int port, String name, String password) {
+    public CompletableFuture<Boolean> connectWithFallback(String publicHost, String lanHost, int port, String name, String password, String expectedHostPubKey) {
         return CompletableFuture.supplyAsync(() -> {
             if (publicHost != null && !publicHost.isEmpty()) {
                 LoggerHelper.info("ClientConnection", "Attempting connection to Public IP (" + publicHost + ":" + port + ")...");
-                if (trySocketConnect(publicHost, port, name, password)) {
+                if (trySocketConnect(publicHost, port, name, password, expectedHostPubKey)) {
                     return true;
                 }
             }
 
             if (lanHost != null && !lanHost.isEmpty() && !lanHost.equals(publicHost)) {
                 LoggerHelper.info("ClientConnection", "Public IP failed. Falling back to LAN IP (" + lanHost + ":" + port + ")...");
-                if (trySocketConnect(lanHost, port, name, password)) {
+                if (trySocketConnect(lanHost, port, name, password, expectedHostPubKey)) {
                     return true;
                 }
             }
 
             if (!"127.0.0.1".equals(publicHost) && !"127.0.0.1".equals(lanHost)) {
                 LoggerHelper.info("ClientConnection", "Falling back to Localhost (127.0.0.1:" + port + ")...");
-                if (trySocketConnect("127.0.0.1", port, name, password)) {
+                if (trySocketConnect("127.0.0.1", port, name, password, expectedHostPubKey)) {
                     return true;
                 }
             }
@@ -49,7 +49,7 @@ public class RelayConnection {
         });
     }
 
-    private boolean trySocketConnect(String host, int port, String name, String password) {
+    private boolean trySocketConnect(String host, int port, String name, String password, String expectedHostPubKey) {
         try {
             socket = new Socket();
             socket.connect(new InetSocketAddress(host, port), 3000);
@@ -73,6 +73,17 @@ public class RelayConnection {
                 LoggerHelper.warn("ClientConnection", "ECDH handshake failed from " + host);
                 disconnect();
                 return false;
+            }
+
+            // ─── Cryptographic Key Pinning Verification ─────────────────────
+            if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
+                if (!CryptoHelper.constantTimeEquals(serverPubKey, expectedHostPubKey)) {
+                    LoggerHelper.error("ClientConnection", "SECURITY ALERT: Man-in-the-Middle (MitM) Attempt Detected! Server Public Key does not match Token Key Pinning!");
+                    callback.onEvent("error", "", "SECURITY ALERT: Server Public Key mismatch (MitM Attack Prevented)");
+                    disconnect();
+                    return false;
+                }
+                LoggerHelper.info("ClientConnection", "✔ Host Public Key Pinning Verified Successfully!");
             }
 
             ecdhKey = ECDHHelper.deriveSharedSecret(clientKeyPair.privateKey, serverPubKey);

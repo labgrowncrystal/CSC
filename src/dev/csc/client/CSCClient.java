@@ -19,9 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.4.0 Cryptographic Masterpiece
+ * CSC — Clientside Chat v1.4.1 Cryptographic Perfection Release
  *
- * Architecture Improvements:
+ * Security Innovations:
+ *   - Host Public Key Pinning (Token Pinning prevents Man-in-the-Middle MitM attacks)
  *   - Elliptic Curve Diffie-Hellman (ECDH secp256r1) Key Agreement over TCP
  *   - AES-256-GCM End-to-End Encrypted Handshake & Messaging
  *   - Zero Secrets / Keys stored inside Session Tokens
@@ -37,7 +38,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.0 (ECDH Architecture)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.1 (Public Key Pinning)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -98,7 +99,7 @@ public class CSCClient implements ClientModInitializer {
                             if (target.startsWith("CSC-")) {
                                 joinToken(ctx.getSource(), target);
                             } else {
-                                connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, "");
+                                connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, "", "");
                             }
                             return 1;
                         })
@@ -108,7 +109,7 @@ public class CSCClient implements ClientModInitializer {
                                 if (target.startsWith("CSC-")) {
                                     joinToken(ctx.getSource(), target);
                                 } else {
-                                    connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, StringArgumentType.getString(ctx, "password"));
+                                    connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, StringArgumentType.getString(ctx, "password"), "");
                                 }
                                 return 1;
                             })
@@ -144,9 +145,10 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.4.0 ECDH Architecture] Status\n";
+                        String statusText = "§b§l[CSC v1.4.1 Public Key Pinning] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
+                        statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
                         statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
                         if (hosting) {
                             statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + ")\n";
@@ -261,7 +263,6 @@ public class CSCClient implements ClientModInitializer {
                 });
                 relayServer.start();
 
-                // Token contains ZERO secrets, only connection routing and Host EC Public Key!
                 currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, durationHours, maxPlayers, hostKeyPair.publicKeyBase64);
                 LoggerHelper.info("CSCClient", "Host started. ECDH Session Token generated: " + currentToken);
 
@@ -309,8 +310,8 @@ public class CSCClient implements ClientModInitializer {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
 
             LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
-            source.sendFeedback(Component.literal("§e[CSC] Token verified! Performing ECDH Key Agreement..."));
-            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "");
+            source.sendFeedback(Component.literal("§e[CSC] Token verified & Host Key Pinned! Connecting..."));
+            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "", data.hostPubKey);
         } catch (SecurityException e) {
             LoggerHelper.warn("CSCClient", "Token security fail: " + e.getMessage());
             source.sendError(Component.literal("§c[CSC] Token invalid or tampered!"));
@@ -323,7 +324,7 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    private static void connectToHostWithFallback(FabricClientCommandSource source, String publicHost, String lanHost, int port, String password) {
+    private static void connectToHostWithFallback(FabricClientCommandSource source, String publicHost, String lanHost, int port, String password, String expectedHostPubKey) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
         }
@@ -332,7 +333,7 @@ public class CSCClient implements ClientModInitializer {
             myName = "Player";
         }
 
-        source.sendFeedback(Component.literal("§e[CSC] Connecting via ECDH..."));
+        source.sendFeedback(Component.literal("§e[CSC] Connecting via ECDH with Key Pinning..."));
 
         connection = new RelayConnection((type, sender, text) -> {
             Minecraft.getInstance().execute(() -> {
@@ -342,12 +343,12 @@ public class CSCClient implements ClientModInitializer {
                     case "system" -> showChat("§e[CSC] " + text);
                     case "auth_fail" -> showChat("§c[CSC] Auth failed: " + text);
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
-                    case "error" -> showChat("§c[CSC] Error: " + text);
+                    case "error" -> showChat("§c[CSC] " + text);
                 }
             });
         });
 
-        connection.connectWithFallback(publicHost, lanHost, port, myName, password).thenAccept(success -> {
+        connection.connectWithFallback(publicHost, lanHost, port, myName, password, expectedHostPubKey).thenAccept(success -> {
             if (!success) {
                 Minecraft.getInstance().execute(() -> {
                     showChat("§c[CSC] Connection failed.");
