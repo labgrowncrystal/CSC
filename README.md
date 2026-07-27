@@ -1,22 +1,23 @@
-# Clientside Chat (CSC) v1.4.1 — Security Hardened Release
+# Clientside Chat (CSC) v1.4.3 — Security & Privacy Hardened Edition
 
-**Elliptic Curve Diffie-Hellman (ECDH) & Host Public Key Pinned private messaging across any Minecraft server — completely invisible to server admins. Zero external tools required.**
+**Server-Admin Private P2P Messaging for Minecraft — zero server-side plugins or external web servers required.**
 
-CSC lets you and your friends chat privately inside Minecraft. Messages never touch the game server — they are routed through an in-mod P2P relay with zero-secret Session Tokens, ECDH Key Agreement (`secp256r1`), Host Public Key Pinning, and AES-256-GCM E2EE encryption.
+CSC enables private, encrypted peer-to-peer chat between Minecraft players. Chat messages never touch the Minecraft game server and are invisible to server admins.
 
 ---
 
-## ✨ Security & Features
+## ✨ Security & Privacy Features
 
+- 🛡️ **Server-Admin Private P2P** — Chat messages bypass the game server entirely via direct P2P TCP sockets.
 - 🔐 **Elliptic Curve Diffie-Hellman (ECDH `secp256r1`)** — Dynamic ephemeral key agreement generated live over TCP.
-- 🛡️ **Host Public Key Pinning (MitM Protection)** — Clients verify the server's public key against the session token during the handshake, protecting against active Man-in-the-Middle network attacks.
+- 🔑 **Host Public Key Pinning (MitM Protection)** — Clients verify the server's public key against the session token during the handshake, protecting against active Man-in-the-Middle network attacks.
 - 🔒 **Zero-Secret Session Tokens** — Tokens contain no passwords, keys, or secrets (only connection routing info and Host EC public key). Token leaks cannot compromise chat privacy.
-- 🔑 **Encrypted Authentication Handshake** — Passwords and auth requests are encrypted via AES-256-GCM prior to transmission. No plaintext passwords over the wire.
+- 🙈 **Privacy-Focused Logging & IP Masking** — Local log files (`%APPDATA%/.minecraft/csc/logs/csc-latest.log`) automatically mask IP addresses (`192.168.1.***`) and redact session tokens. Log files rotate automatically at 250 KB.
+- 🔒 **Encrypted Authentication Handshake** — Passwords and auth requests are encrypted via AES-256-GCM prior to transmission. No plaintext passwords over the wire.
 - ⏱️ **Constant-Time Password Comparison** — Password hashes are compared using `MessageDigest.isEqual` to prevent side-channel timing attacks.
 - 🚫 **Message Rate-Limiting & Auto IP Ban** — Limits message throughput to 10 msgs/sec and automatically bans IPs for 5 minutes after 5 failed login attempts.
 - 🌐 **Dual-IP Automatic Fallback** — Seamlessly connects via Public WAN IP, LAN IP, or Localhost (127.0.0.1) automatically — instant connection even on the same PC/LAN!
 - 🌍 **Multi-Language Support** — Fully localized in English, German (with proper umlauts), Spanish, French, Russian, and Simplified Chinese.
-- 📝 **Dedicated Logging System** — Persistent logs saved under `%APPDATA%/.minecraft/csc/logs/csc-latest.log`.
 - 🪶 **Zero Dependencies** — Standard Minecraft & Java APIs only (Fabric API required).
 
 ---
