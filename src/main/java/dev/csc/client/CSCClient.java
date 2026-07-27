@@ -17,26 +17,31 @@ import net.minecraft.network.chat.Style;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 /**
- * CSC — Clientside Chat v1.9.2 100% Full Translation Audit & Micro-Cleanup
+ * CSC — Clientside Chat v1.10.0 (Visual Contrast, Auto-Copy, AFK & Fingerprint Edition)
  *
  * Features:
- *   - 100% Translatable Coverage: Password notice localized via csc.chat.no_password_warning in 6 languages.
- *   - Unique Ban ID System (#1, #2...) for collision-free unbanning of anonymized IPs
+ *   - Yellow Text Color Contrast (§e) for incoming chat messages & whispers
+ *   - Automatic Clipboard Copying of Session Tokens upon hosting
+ *   - AFK Auto-Responder (/csc afk [message|off])
+ *   - Host Key SHA-256 Security Fingerprint in /csc status
+ *   - Unique Ban ID System (#1, #2...) for collision-free unbanning
  *   - Direct Private Whispering (#/msg <player> <text> or /csc msg)
  *   - Session Player List (/csc list)
  *   - Selectable Notification Sounds (/csc sound bell|ping|orb|click|anvil|off)
  *   - Favorite Server Bookmarks (/csc bookmark add|join|list|remove)
- *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
- *   - Modern Chat Badges & Interactive [COPY TOKEN] button
- *   - Ultra-compact Binary Tokens (~147 chars) & Unified Commands
+ *   - Fabric ModMenu Metadata & 6-Language Localization
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -44,10 +49,12 @@ public class CSCClient implements ClientModInitializer {
     private static String myName = "";
     private static String currentToken = "";
     private static String selectedSound = "bell"; // bell, ping, orb, click, anvil, off
+    private static String afkMessage = "";
+    private static String currentHostPubKey = "";
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.2 (100% Full Localization Audit)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.10.0 (Visual Contrast & QoL Edition)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -89,6 +96,27 @@ public class CSCClient implements ClientModInitializer {
                                 })
                             )
                         )
+                    )
+                )
+
+                .then(ClientCommands.literal("afk")
+                    .executes(ctx -> {
+                        afkMessage = afkMessage.isEmpty() ? "AFK" : "";
+                        ctx.getSource().sendFeedback(Component.translatable(afkMessage.isEmpty() ? "csc.chat.afk_off" : "csc.chat.afk_set", afkMessage));
+                        return 1;
+                    })
+                    .then(ClientCommands.argument("message", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            String msg = StringArgumentType.getString(ctx, "message").trim();
+                            if (msg.equalsIgnoreCase("off")) {
+                                afkMessage = "";
+                                ctx.getSource().sendFeedback(Component.translatable("csc.chat.afk_off"));
+                            } else {
+                                afkMessage = msg;
+                                ctx.getSource().sendFeedback(Component.translatable("csc.chat.afk_set", afkMessage));
+                            }
+                            return 1;
+                        })
                     )
                 )
 
@@ -299,10 +327,14 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§8[§d§lCSC v1.9.2§8] §bStatus Overview\n";
+                        String statusText = "§8[§d§lCSC v1.10.0§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
+                        statusText += "§7  AFK Status: " + (afkMessage.isEmpty() ? "§cDisabled 🔔" : "§aActive: \"" + afkMessage + "\" 💤") + "\n";
                         statusText += "§7  Sound Mode: " + (selectedSound.equals("off") ? "§c✘ Off 🔕" : "§a✔ " + selectedSound + " 🔔") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
+                        if (!currentHostPubKey.isEmpty()) {
+                            statusText += "§7  Host Fingerprint: §aSHA256:" + computeFingerprint(currentHostPubKey) + "\n";
+                        }
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
                         statusText += "§7  Privacy Logs: §a✔ Anonymized & Masked\n";
                         statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
@@ -390,6 +422,7 @@ public class CSCClient implements ClientModInitializer {
             .append(Component.translatable("csc.help.list")).append("\n")
             .append(Component.translatable("csc.help.bookmark")).append("\n")
             .append(Component.translatable("csc.help.sound")).append("\n")
+            .append(Component.translatable("csc.help.afk")).append("\n")
             .append(Component.translatable("csc.help.kick")).append("\n")
             .append(Component.translatable("csc.help.ban")).append("\n")
             .append(Component.translatable("csc.help.unban")).append("\n")
@@ -417,6 +450,7 @@ public class CSCClient implements ClientModInitializer {
         new Thread(() -> {
             try {
                 ECDHHelper.ECDHKeyPair hostKeyPair = ECDHHelper.generateKeyPair();
+                currentHostPubKey = hostKeyPair.publicKeyBase64;
                 String publicIp = "127.0.0.1";
                 try {
                     HttpClient client = HttpClient.newHttpClient();
@@ -442,10 +476,7 @@ public class CSCClient implements ClientModInitializer {
                             }
                             case "disconnected" -> showComponent(Component.translatable("csc.chat.left", sender));
                             case "msg" -> handleIncomingChatMessage(sender, text);
-                            case "whisper" -> {
-                                showChat("§8[§d§lCSC Whisper from " + sender + "§8] §f" + text);
-                                playNotificationSound(true);
-                            }
+                            case "whisper" -> handleIncomingWhisper(sender, text);
                             case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                         }
                     });
@@ -455,8 +486,14 @@ public class CSCClient implements ClientModInitializer {
                 currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, finalDurationHours, finalMaxPlayers, hostKeyPair.publicKeyBase64);
                 LoggerHelper.info("CSCClient", "Host started. Compact ECDH Session Token generated: " + currentToken);
 
+                // Auto-copy token to system clipboard
+                try {
+                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(currentToken), null);
+                } catch (Throwable ignored) {}
+
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
+                    source.sendFeedback(Component.translatable("csc.chat.autocopy_notice"));
                     if (password.isEmpty()) {
                         source.sendFeedback(Component.literal("§e[CSC Notice] ").append(Component.translatable("csc.chat.no_password_warning")));
                     }
@@ -471,6 +508,16 @@ public class CSCClient implements ClientModInitializer {
                 });
             }
         }, "CSC-Host-Init").start();
+    }
+
+    private static void handleIncomingWhisper(String sender, String text) {
+        showChat("§8[§d§lCSC Whisper from " + sender + "§8] §e" + text);
+        playNotificationSound(true);
+
+        if (!afkMessage.isEmpty()) {
+            String autoReply = "[CSC Auto-Response] " + myName + " is currently AFK: " + afkMessage;
+            sendDirectWhisper(null, sender, autoReply);
+        }
     }
 
     private static void sendDirectWhisper(FabricClientCommandSource source, String target, String text) {
@@ -616,10 +663,10 @@ public class CSCClient implements ClientModInitializer {
     private static void handleIncomingChatMessage(String sender, String text) {
         boolean isMention = !myName.isEmpty() && (text.contains("@" + myName) || text.contains(myName));
         if (isMention) {
-            showChat("§8[§d§lCSC§8] §e§l" + sender + " (Mention): §f" + text);
+            showChat("§8[§d§lCSC§8] §e§l" + sender + " (Mention): §e" + text);
             playNotificationSound(true);
         } else {
-            showChat("§8[§d§lCSC§8] §d" + sender + ": §f" + text);
+            showChat("§8[§d§lCSC§8] §d" + sender + ": §e" + text);
             playNotificationSound(false);
         }
     }
@@ -651,6 +698,7 @@ public class CSCClient implements ClientModInitializer {
             relayServer.stop();
             relayServer = null;
             currentToken = "";
+            currentHostPubKey = "";
             LoggerHelper.info("CSCClient", "Host stopped by user.");
             source.sendFeedback(Component.translatable("csc.chat.host_stopped"));
         } else {
@@ -684,6 +732,7 @@ public class CSCClient implements ClientModInitializer {
     private static void joinToken(FabricClientCommandSource source, String tokenStr, String overridePassword) {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
+            currentHostPubKey = data.hostPubKey;
 
             LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + LoggerHelper.anonymizeIp(data.publicIp) + ", LAN IP=" + LoggerHelper.anonymizeIp(data.lanIp));
             source.sendFeedback(Component.translatable("csc.chat.token_verified"));
@@ -719,10 +768,7 @@ public class CSCClient implements ClientModInitializer {
                         playNotificationSound(false);
                     }
                     case "msg" -> handleIncomingChatMessage(sender, text);
-                    case "whisper" -> {
-                        showChat("§8[§d§lCSC Whisper from " + sender + "§8] §f" + text);
-                        playNotificationSound(true);
-                    }
+                    case "whisper" -> handleIncomingWhisper(sender, text);
                     case "system" -> showChat("§8[§d§lCSC§8] §e" + text);
                     case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
@@ -744,6 +790,7 @@ public class CSCClient implements ClientModInitializer {
     private static void disconnectFromHost(FabricClientCommandSource source) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
+            currentHostPubKey = "";
             LoggerHelper.info("CSCClient", "Disconnected by user.");
             source.sendFeedback(Component.translatable("csc.chat.user_disconnected"));
         } else {
@@ -781,6 +828,20 @@ public class CSCClient implements ClientModInitializer {
                 });
             }
         }, "CSC-IP-Fetch").start();
+    }
+
+    private static String computeFingerprint(String pubKey) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(pubKey.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 4; i++) {
+                hex.append(String.format("%02X", hash[i]));
+            }
+            return hex.substring(0, 4) + "-" + hex.substring(4, 8);
+        } catch (Exception e) {
+            return "UNKNOWN";
+        }
     }
 
     private static void showChat(String text) {
