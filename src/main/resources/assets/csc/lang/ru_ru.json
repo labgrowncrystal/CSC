@@ -2,6 +2,10 @@
   "csc.help.title": "Clientside Chat — Список команд",
   "csc.help.host": "/csc host [пароль] [макс_игроков] [часы] — Создать сервер и сгенерировать Токен",
   "csc.help.join": "/csc join <токен|ip> [пароль] — Подключиться по Токену или IP",
+  "csc.help.kick": "/csc kick <игрок> [причина] — Исключить игрока из сессии",
+  "csc.help.ban": "/csc ban <игрок> [причина] — Заблокировать игрока",
+  "csc.help.unban": "/csc unban <ip> — Разблокировать IP",
+  "csc.help.banlist": "/csc banlist — Список заблокированных IP",
   "csc.help.stop": "/csc stop — Остановить сервер",
   "csc.help.disconnect": "/csc disconnect — Отключиться",
   "csc.help.token": "/csc token — Показать активный Токен",
@@ -24,6 +28,12 @@
   "csc.chat.token_sub": "(Нажмите кнопку ниже для копирования.)",
   "csc.chat.token_copy_btn": "[ КОПИРОВАТЬ ТОКЕН ]",
   "csc.chat.ip_label": "Ваш публичный IP: %s",
+
+  "csc.chat.kicked_success": "✔ Игрок '%s' был исключен из сессии.",
+  "csc.chat.kicked_fail": "✘ Игрок '%s' не найден.",
+  "csc.chat.banned_success": "✔ Игрок '%s' заблокирован.",
+  "csc.chat.unbanned_success": "✔ IP '%s' разблокирован.",
+  "csc.chat.unbanned_fail": "✘ IP '%s' не найден в списке блокировок.",
 
   "csc.chat.sound_on": "✔ Звуки уведомлений ВКЛЮЧЕНЫ 🔔",
   "csc.chat.sound_off": "✘ Звуки уведомлений ВЫКЛЮЧЕНЫ 🔕",

@@ -2,6 +2,10 @@
   "csc.help.title": "Clientside Chat — Commandes",
   "csc.help.host": "/csc host [mot_de_passe] [max_joueurs] [heures] — Héberger un serveur & générer Token",
   "csc.help.join": "/csc join <token|ip> [mot_de_passe] — Rejoindre via Token ou IP",
+  "csc.help.kick": "/csc kick <joueur> [raison] — Expulser un joueur",
+  "csc.help.ban": "/csc ban <joueur> [raison] — Bannir un joueur",
+  "csc.help.unban": "/csc unban <ip> — Débannir une adresse IP",
+  "csc.help.banlist": "/csc banlist — Liste des adresses IP bannies",
   "csc.help.stop": "/csc stop — Arrêter l'hébergement",
   "csc.help.disconnect": "/csc disconnect — Se déconnecter",
   "csc.help.token": "/csc token — Afficher le Token actif",
@@ -24,6 +28,12 @@
   "csc.chat.token_sub": "(Cliquez sur le bouton ci-dessous pour copier.)",
   "csc.chat.token_copy_btn": "[ COPIER LE JETON ]",
   "csc.chat.ip_label": "Votre IP publique : %s",
+
+  "csc.chat.kicked_success": "✔ Le joueur '%s' a été expulsé.",
+  "csc.chat.kicked_fail": "✘ Joueur '%s' non trouvé.",
+  "csc.chat.banned_success": "✔ Le joueur '%s' a été banni.",
+  "csc.chat.unbanned_success": "✔ L'IP '%s' a été débannie.",
+  "csc.chat.unbanned_fail": "✘ L'IP '%s' n'était pas bannie.",
 
   "csc.chat.sound_on": "✔ Sons de notification ACTIVÉS 🔔",
   "csc.chat.sound_off": "✘ Sons de notification DÉSACTIVÉS 🔕",

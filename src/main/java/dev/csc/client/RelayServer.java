@@ -10,9 +10,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.5.3 Authenticated Name Uniqueness Edition
+ * Hardened P2P TCP Relay Server v1.8.0 Host Moderation Edition
  * Features:
- *   - Password-First Authentication (Prevents unauthenticated name-enumeration leaks)
+ *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
+ *   - Password-First Authentication (Prevents name-enumeration leaks)
  *   - Name Uniqueness Check (Prevents name spoofing / impersonation within a session)
  *   - Active Session Expiration Kick (Disconnects existing clients once expiresAt is reached)
  *   - Spam Rate Limit Escalation (Kicks clients after 5 consecutive spam violations)
@@ -88,7 +89,6 @@ public class RelayServer {
         acceptThread.setDaemon(true);
         acceptThread.start();
 
-        // Active Expiration Check Thread: kicks connected clients when session expires
         if (expiresAt > 0) {
             expiryCheckThread = new Thread(() -> {
                 while (running) {
@@ -130,6 +130,44 @@ public class RelayServer {
     public boolean isRunning() { return running; }
     public int getClientCount() { return clients.size(); }
     public int getMaxClients() { return maxClients; }
+
+    public boolean kickPlayer(String playerName, String reason) {
+        for (ClientHandler c : clients) {
+            if (c.name.equalsIgnoreCase(playerName)) {
+                String kickMsg = "Kicked by host" + (reason.isEmpty() ? "" : ": " + reason);
+                c.sendEncrypted("{\"type\":\"system\",\"text\":\"" + escapeJson(kickMsg) + "\"}");
+                c.disconnect();
+                broadcast(playerName, "{\"type\":\"system\",\"text\":\"" + escapeJson(playerName) + " was kicked from the session.\"}");
+                LoggerHelper.info("RelayServer", "Host kicked player '" + playerName + "' (" + kickMsg + ")");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean banPlayer(String playerName, String reason) {
+        for (ClientHandler c : clients) {
+            if (c.name.equalsIgnoreCase(playerName)) {
+                long banUntil = System.currentTimeMillis() + (24 * 3600 * 1000L); // 24 Hours Ban
+                bannedIps.put(c.remoteIp, banUntil);
+                String banMsg = "Banned by host" + (reason.isEmpty() ? "" : ": " + reason);
+                c.sendEncrypted("{\"type\":\"system\",\"text\":\"" + escapeJson(banMsg) + "\"}");
+                c.disconnect();
+                broadcast(playerName, "{\"type\":\"system\",\"text\":\"" + escapeJson(playerName) + " was banned from the session.\"}");
+                LoggerHelper.info("RelayServer", "Host banned player '" + playerName + "' (IP: " + c.anonIp + ")");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean unbanIp(String ip) {
+        return bannedIps.remove(ip) != null;
+    }
+
+    public Map<String, Long> getBannedIps() {
+        return Collections.unmodifiableMap(bannedIps);
+    }
 
     private boolean isNameTaken(String name) {
         for (ClientHandler c : clients) {
@@ -215,7 +253,6 @@ public class RelayServer {
                     return;
                 }
 
-                // 1. Password Verification (Executed FIRST to prevent name-enumeration leaks)
                 if (!passwordHash.isEmpty()) {
                     String providedPwHash = pw != null ? sha256(pw) : "";
                     if (!CryptoHelper.constantTimeEquals(passwordHash, providedPwHash)) {
@@ -235,7 +272,6 @@ public class RelayServer {
                     }
                 }
 
-                // 2. Name Uniqueness Check (Executed ONLY AFTER valid password verification)
                 if (isNameTaken(n)) {
                     sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Name already taken\"}");
                     LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + anonIp + ": Name already taken in session");

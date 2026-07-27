@@ -20,11 +20,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Map;
 
 /**
- * CSC — Clientside Chat v1.7.0 Audio Feedback & Modern Chat Badge Edition
+ * CSC — Clientside Chat v1.8.0 Host Moderation Suite Edition
  *
  * Features:
+ *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
  *   - Notification Sounds & Mention Pings (@PlayerName)
  *   - /csc sound [on|off] toggle command
  *   - Modern UI Chat Badges & Interactive [COPY TOKEN] button
@@ -40,7 +42,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.7.0 (Audio Feedback & Modern UI Badges)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.8.0 (Host Moderation Suite)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -83,6 +85,59 @@ public class CSCClient implements ClientModInitializer {
                             )
                         )
                     )
+                )
+
+                .then(ClientCommands.literal("kick")
+                    .then(ClientCommands.argument("player", StringArgumentType.string())
+                        .executes(ctx -> {
+                            String p = StringArgumentType.getString(ctx, "player");
+                            kickHostPlayer(ctx.getSource(), p, "");
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("reason", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                String p = StringArgumentType.getString(ctx, "player");
+                                String r = StringArgumentType.getString(ctx, "reason");
+                                kickHostPlayer(ctx.getSource(), p, r);
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("ban")
+                    .then(ClientCommands.argument("player", StringArgumentType.string())
+                        .executes(ctx -> {
+                            String p = StringArgumentType.getString(ctx, "player");
+                            banHostPlayer(ctx.getSource(), p, "");
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("reason", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                String p = StringArgumentType.getString(ctx, "player");
+                                String r = StringArgumentType.getString(ctx, "reason");
+                                banHostPlayer(ctx.getSource(), p, r);
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("unban")
+                    .then(ClientCommands.argument("ip", StringArgumentType.string())
+                        .executes(ctx -> {
+                            String ip = StringArgumentType.getString(ctx, "ip");
+                            unbanHostIp(ctx.getSource(), ip);
+                            return 1;
+                        })
+                    )
+                )
+
+                .then(ClientCommands.literal("banlist")
+                    .executes(ctx -> {
+                        showBanlist(ctx.getSource());
+                        return 1;
+                    })
                 )
 
                 .then(ClientCommands.literal("join")
@@ -166,7 +221,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§8[§d§lCSC v1.7.0§8] §bStatus Overview\n";
+                        String statusText = "§8[§d§lCSC v1.8.0§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Sounds: " + (soundEnabled ? "§a✔ Active 🔔" : "§c✘ Muted 🔕") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
@@ -238,6 +293,10 @@ public class CSCClient implements ClientModInitializer {
         source.sendFeedback(Component.literal("§8[§d§lCSC§8] §b").append(Component.translatable("csc.help.title")).append("\n")
             .append(Component.translatable("csc.help.host")).append("\n")
             .append(Component.translatable("csc.help.join")).append("\n")
+            .append(Component.translatable("csc.help.kick")).append("\n")
+            .append(Component.translatable("csc.help.ban")).append("\n")
+            .append(Component.translatable("csc.help.unban")).append("\n")
+            .append(Component.translatable("csc.help.banlist")).append("\n")
             .append(Component.translatable("csc.help.sound")).append("\n")
             .append(Component.translatable("csc.help.stop")).append("\n")
             .append(Component.translatable("csc.help.disconnect")).append("\n")
@@ -309,6 +368,61 @@ public class CSCClient implements ClientModInitializer {
                 });
             }
         }, "CSC-Host-Init").start();
+    }
+
+    private static void kickHostPlayer(FabricClientCommandSource source, String player, String reason) {
+        if (relayServer == null || !relayServer.isRunning()) {
+            source.sendError(Component.translatable("csc.chat.not_hosting"));
+            return;
+        }
+        if (relayServer.kickPlayer(player, reason)) {
+            source.sendFeedback(Component.translatable("csc.chat.kicked_success", player));
+        } else {
+            source.sendError(Component.translatable("csc.chat.kicked_fail", player));
+        }
+    }
+
+    private static void banHostPlayer(FabricClientCommandSource source, String player, String reason) {
+        if (relayServer == null || !relayServer.isRunning()) {
+            source.sendError(Component.translatable("csc.chat.not_hosting"));
+            return;
+        }
+        if (relayServer.banPlayer(player, reason)) {
+            source.sendFeedback(Component.translatable("csc.chat.banned_success", player));
+        } else {
+            source.sendError(Component.translatable("csc.chat.kicked_fail", player));
+        }
+    }
+
+    private static void unbanHostIp(FabricClientCommandSource source, String ip) {
+        if (relayServer == null || !relayServer.isRunning()) {
+            source.sendError(Component.translatable("csc.chat.not_hosting"));
+            return;
+        }
+        if (relayServer.unbanIp(ip)) {
+            source.sendFeedback(Component.translatable("csc.chat.unbanned_success", ip));
+        } else {
+            source.sendError(Component.translatable("csc.chat.unbanned_fail", ip));
+        }
+    }
+
+    private static void showBanlist(FabricClientCommandSource source) {
+        if (relayServer == null || !relayServer.isRunning()) {
+            source.sendError(Component.translatable("csc.chat.not_hosting"));
+            return;
+        }
+        Map<String, Long> bannedMap = relayServer.getBannedIps();
+        if (bannedMap.isEmpty()) {
+            source.sendFeedback(Component.literal("§8[§d§lCSC§8] §aBanlist is currently empty."));
+        } else {
+            StringBuilder sb = new StringBuilder("§8[§d§lCSC§8] §cActive Banned IPs:\n");
+            for (Map.Entry<String, Long> entry : bannedMap.entrySet()) {
+                String anon = LoggerHelper.anonymizeIp(entry.getKey());
+                long remainingSec = (entry.getValue() - System.currentTimeMillis()) / 1000L;
+                sb.append("§7  • ").append(anon).append(" §8(").append(Math.max(0, remainingSec)).append("s remaining)\n");
+            }
+            source.sendFeedback(Component.literal(sb.toString()));
+        }
     }
 
     private static void sendTokenComponent(FabricClientCommandSource source, String token) {
