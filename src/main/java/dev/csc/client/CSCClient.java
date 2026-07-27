@@ -25,9 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CSC — Clientside Chat v1.9.0 Ultimate Feature Suite Edition
+ * CSC — Clientside Chat v1.9.1 Security Clarity & Ban ID Edition
  *
  * Features:
+ *   - Unique Ban ID System (#1, #2...) for collision-free unbanning of anonymized IPs
+ *   - No-Password Session Security Notice
  *   - Direct Private Whispering (#/msg <player> <text> or /csc msg)
  *   - Session Player List (/csc list)
  *   - Selectable Notification Sounds (/csc sound bell|ping|orb|click|anvil|off)
@@ -45,7 +47,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.0 (Ultimate Feature Suite)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.1 (Security Clarity & Ban ID Edition)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -258,10 +260,10 @@ public class CSCClient implements ClientModInitializer {
                 )
 
                 .then(ClientCommands.literal("unban")
-                    .then(ClientCommands.argument("ip", StringArgumentType.string())
+                    .then(ClientCommands.argument("target", StringArgumentType.string())
                         .executes(ctx -> {
-                            String ip = StringArgumentType.getString(ctx, "ip");
-                            unbanHostIp(ctx.getSource(), ip);
+                            String target = StringArgumentType.getString(ctx, "target");
+                            unbanHostIp(ctx.getSource(), target);
                             return 1;
                         })
                     )
@@ -297,7 +299,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§8[§d§lCSC v1.9.0 Ultimate§8] §bStatus Overview\n";
+                        String statusText = "§8[§d§lCSC v1.9.1§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Sound Mode: " + (selectedSound.equals("off") ? "§c✘ Off 🔕" : "§a✔ " + selectedSound + " 🔔") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
@@ -455,6 +457,9 @@ public class CSCClient implements ClientModInitializer {
 
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
+                    if (password.isEmpty()) {
+                        source.sendFeedback(Component.literal("§e[CSC Notice] No password set. Your session security relies entirely on keeping the Session Token private."));
+                    }
                     sendTokenComponent(source, currentToken);
                     playNotificationSound(false);
                 });
@@ -558,15 +563,15 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    private static void unbanHostIp(FabricClientCommandSource source, String ip) {
+    private static void unbanHostIp(FabricClientCommandSource source, String target) {
         if (relayServer == null || !relayServer.isRunning()) {
             source.sendError(Component.translatable("csc.chat.not_hosting"));
             return;
         }
-        if (relayServer.unbanIp(ip)) {
-            source.sendFeedback(Component.translatable("csc.chat.unbanned_success", ip));
+        if (relayServer.unbanIp(target)) {
+            source.sendFeedback(Component.translatable("csc.chat.unbanned_success", target));
         } else {
-            source.sendError(Component.translatable("csc.chat.unbanned_fail", ip));
+            source.sendError(Component.translatable("csc.chat.unbanned_fail", target));
         }
     }
 
@@ -575,15 +580,16 @@ public class CSCClient implements ClientModInitializer {
             source.sendError(Component.translatable("csc.chat.not_hosting"));
             return;
         }
-        Map<String, Long> bannedMap = relayServer.getBannedIps();
-        if (bannedMap.isEmpty()) {
+        List<RelayServer.BannedEntry> bannedList = relayServer.getBannedEntries();
+        if (bannedList.isEmpty()) {
             source.sendFeedback(Component.literal("§8[§d§lCSC§8] §aBanlist is currently empty."));
         } else {
-            StringBuilder sb = new StringBuilder("§8[§d§lCSC§8] §cActive Banned IPs:\n");
-            for (Map.Entry<String, Long> entry : bannedMap.entrySet()) {
-                String anon = LoggerHelper.anonymizeIp(entry.getKey());
-                long remainingSec = (entry.getValue() - System.currentTimeMillis()) / 1000L;
-                sb.append("§7  • ").append(anon).append(" §8(").append(Math.max(0, remainingSec)).append("s remaining)\n");
+            StringBuilder sb = new StringBuilder("§8[§d§lCSC§8] §cActive Banned Entries (Use /csc unban #ID):\n");
+            for (RelayServer.BannedEntry entry : bannedList) {
+                String anon = LoggerHelper.anonymizeIp(entry.rawIp);
+                long remainingSec = (entry.expiresAt - System.currentTimeMillis()) / 1000L;
+                sb.append("§7  • §e#").append(entry.id).append(" §8- §f").append(anon)
+                  .append(" §8(").append(Math.max(0, remainingSec)).append("s remaining)\n");
             }
             source.sendFeedback(Component.literal(sb.toString()));
         }

@@ -7,11 +7,13 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.9.0 Ultimate Feature Suite Edition
+ * Hardened P2P TCP Relay Server v1.9.1 Security Clarity & Ban ID Edition
  * Features:
+ *   - Unique Ban ID System (#1, #2...) for collision-free unbanning of anonymized IPs
  *   - Direct Private Whispering (whisper to specific players)
  *   - Client Name Listing (/csc list)
  *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
@@ -30,11 +32,24 @@ public class RelayServer {
     private final ECDHHelper.ECDHKeyPair hostKeyPair;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
-    private final Map<String, Long> bannedIps = new ConcurrentHashMap<>();
+    private final Map<String, BannedEntry> bannedMap = new ConcurrentHashMap<>();
+    private final AtomicInteger nextBanId = new AtomicInteger(1);
     private volatile boolean running = false;
     private Thread acceptThread;
     private Thread expiryCheckThread;
     private final MessageCallback callback;
+
+    public static class BannedEntry {
+        public final int id;
+        public final String rawIp;
+        public final long expiresAt;
+
+        public BannedEntry(int id, String rawIp, long expiresAt) {
+            this.id = id;
+            this.rawIp = rawIp;
+            this.expiresAt = expiresAt;
+        }
+    }
 
     public RelayServer(int port, String password, int maxClients, long expiresAt, ECDHHelper.ECDHKeyPair hostKeyPair, MessageCallback callback) {
         this.port = port;
@@ -57,14 +72,14 @@ public class RelayServer {
                     String remoteIp = getRemoteIp(socket);
                     String anonIp = LoggerHelper.anonymizeIp(remoteIp);
 
-                    Long banTime = bannedIps.get(remoteIp);
-                    if (banTime != null) {
-                        if (System.currentTimeMillis() < banTime) {
-                            LoggerHelper.warn("RelayServer", "Rejected connection from banned IP: " + anonIp);
+                    BannedEntry banEntry = bannedMap.get(remoteIp);
+                    if (banEntry != null) {
+                        if (System.currentTimeMillis() < banEntry.expiresAt) {
+                            LoggerHelper.warn("RelayServer", "Rejected connection from banned IP: " + anonIp + " (Ban #" + banEntry.id + ")");
                             socket.close();
                             continue;
                         } else {
-                            bannedIps.remove(remoteIp);
+                            bannedMap.remove(remoteIp);
                             failedAttempts.remove(remoteIp);
                         }
                     }
@@ -122,7 +137,7 @@ public class RelayServer {
             c.disconnect();
         }
         clients.clear();
-        bannedIps.clear();
+        bannedMap.clear();
         failedAttempts.clear();
         try {
             if (serverSocket != null) serverSocket.close();
@@ -170,12 +185,14 @@ public class RelayServer {
         for (ClientHandler c : clients) {
             if (c.name.equalsIgnoreCase(playerName)) {
                 long banUntil = System.currentTimeMillis() + (24 * 3600 * 1000L); // 24 Hours Ban
-                bannedIps.put(c.remoteIp, banUntil);
+                int banId = nextBanId.getAndIncrement();
+                bannedMap.put(c.remoteIp, new BannedEntry(banId, c.remoteIp, banUntil));
+
                 String banMsg = "Banned by host" + (reason.isEmpty() ? "" : ": " + reason);
                 c.sendEncrypted("{\"type\":\"system\",\"text\":\"" + escapeJson(banMsg) + "\"}");
                 c.disconnect();
-                broadcast(playerName, "{\"type\":\"system\",\"text\":\"" + escapeJson(playerName) + " was banned from the session.\"}");
-                LoggerHelper.info("RelayServer", "Host banned player '" + playerName + "' (IP: " + c.anonIp + ")");
+                broadcast(playerName, "{\"type\":\"system\",\"text\":\"" + escapeJson(playerName) + " was banned from the session (Ban #" + banId + ").\"}");
+                LoggerHelper.info("RelayServer", "Host banned player '" + playerName + "' (Ban #" + banId + ", IP: " + c.anonIp + ")");
                 return true;
             }
         }
@@ -183,21 +200,35 @@ public class RelayServer {
     }
 
     public boolean unbanIp(String target) {
-        if (target == null || target.isEmpty()) return false;
-        if (bannedIps.remove(target) != null) {
+        if (target == null || target.trim().isEmpty()) return false;
+        target = target.trim();
+
+        // 1. Try matching by Ban ID (e.g. "#1" or "1")
+        if (target.startsWith("#")) target = target.substring(1);
+        try {
+            int targetId = Integer.parseInt(target);
+            for (Map.Entry<String, BannedEntry> entry : bannedMap.entrySet()) {
+                if (entry.getValue().id == targetId) {
+                    bannedMap.remove(entry.getKey());
+                    LoggerHelper.info("RelayServer", "Unbanned IP by Ban #" + targetId);
+                    return true;
+                }
+            }
+        } catch (NumberFormatException ignored) {}
+
+        // 2. Try matching by exact IP address
+        if (bannedMap.remove(target) != null) {
+            LoggerHelper.info("RelayServer", "Unbanned IP by exact IP match");
             return true;
         }
-        for (String rawIp : bannedIps.keySet()) {
-            if (LoggerHelper.anonymizeIp(rawIp).equalsIgnoreCase(target) || rawIp.equalsIgnoreCase(target)) {
-                bannedIps.remove(rawIp);
-                return true;
-            }
-        }
+
         return false;
     }
 
-    public Map<String, Long> getBannedIps() {
-        return Collections.unmodifiableMap(bannedIps);
+    public List<BannedEntry> getBannedEntries() {
+        List<BannedEntry> list = new ArrayList<>(bannedMap.values());
+        list.sort(Comparator.comparingInt(a -> a.id));
+        return list;
     }
 
     private boolean isNameTaken(String name) {
@@ -294,8 +325,9 @@ public class RelayServer {
                         
                         if (fails >= 5) {
                             long banUntil = System.currentTimeMillis() + (5 * 60 * 1000);
-                            bannedIps.put(remoteIp, banUntil);
-                            LoggerHelper.error("RelayServer", "Rate limit exceeded! Temporarily banned IP " + anonIp + " for 5 minutes.");
+                            int banId = nextBanId.getAndIncrement();
+                            bannedMap.put(remoteIp, new BannedEntry(banId, remoteIp, banUntil));
+                            LoggerHelper.error("RelayServer", "Rate limit exceeded! Temporarily banned IP " + anonIp + " (Ban #" + banId + ") for 5 minutes.");
                         }
 
                         callback.onEvent("auth_fail", n, "Wrong password");

@@ -10,11 +10,11 @@ import java.util.Base64;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Ultra-Compact Binary Session Token Encoder & Parser (v1.6.0).
+ * Ultra-Compact Binary Session Token Encoder & Parser (v1.9.1).
  * Features:
  *   - Binary Packed Schema with 16-bit CRC checksum (81 bytes total).
  *   - Produces ultra-short ~147 char tokens (`CSC-xxxx`) that fit easily inside Minecraft's 256 char chat limit.
- *   - 100% Tamper-proof: Checksum verification rejects corrupted or altered tokens.
+ *   - Corruption Detection: 16-bit CRC checksum catches accidental copy/paste, transcription, and truncation errors.
  *   - 100% Backward-compatible with legacy JSON tokens (ip, lan, port, exp, max, pub).
  */
 public class TokenHelper {
@@ -91,7 +91,7 @@ public class TokenHelper {
             ByteBuffer checkBuf = ByteBuffer.wrap(decodedBytes, payloadSize, 2);
             short actualCrc = checkBuf.getShort();
             if (expectedCrc != actualCrc) {
-                throw new SecurityException("Tampered or corrupted token checksum failure");
+                throw new SecurityException("Token corruption or transcription error detected");
             }
 
             ByteBuffer buf = ByteBuffer.wrap(decodedBytes, 0, payloadSize);
