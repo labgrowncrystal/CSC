@@ -8,10 +8,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * Built-in TCP relay server that runs inside Minecraft.
- * Features rate-limiting/IP-banning for brute-force prevention and max input line limits.
- */
 public class RelayServer {
     private ServerSocket serverSocket;
     private final int port;
@@ -44,7 +40,6 @@ public class RelayServer {
                     Socket socket = serverSocket.accept();
                     String remoteIp = getRemoteIp(socket);
 
-                    // Check ban status
                     Long banTime = bannedIps.get(remoteIp);
                     if (banTime != null) {
                         if (System.currentTimeMillis() < banTime) {
@@ -94,17 +89,9 @@ public class RelayServer {
         } catch (IOException ignored) {}
     }
 
-    public boolean isRunning() {
-        return running;
-    }
-
-    public int getClientCount() {
-        return clients.size();
-    }
-
-    public int getMaxClients() {
-        return maxClients;
-    }
+    public boolean isRunning() { return running; }
+    public int getClientCount() { return clients.size(); }
+    public int getMaxClients() { return maxClients; }
 
     private void broadcast(String senderName, String json) {
         for (ClientHandler c : clients) {
@@ -169,7 +156,7 @@ public class RelayServer {
                         LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + remoteIp + " (Attempt " + fails + "/5)");
                         
                         if (fails >= 5) {
-                            long banUntil = System.currentTimeMillis() + (5 * 60 * 1000); // 5 min ban
+                            long banUntil = System.currentTimeMillis() + (5 * 60 * 1000);
                             bannedIps.put(remoteIp, banUntil);
                             LoggerHelper.error("RelayServer", "Rate limit exceeded! Temporarily banned IP " + remoteIp + " for 5 minutes.");
                         }
@@ -179,7 +166,6 @@ public class RelayServer {
                     }
                 }
 
-                // Auth success
                 failedAttempts.remove(remoteIp);
                 this.name = n;
                 this.authenticated = true;
@@ -225,7 +211,7 @@ public class RelayServer {
                 if (ch != '\r') {
                     sb.append((char) ch);
                     count++;
-                    if (count > 16384) { // Max 16KB per line limit to prevent DoS
+                    if (count > 16384) {
                         throw new IOException("Input line exceeded max size limit (16KB)");
                     }
                 }

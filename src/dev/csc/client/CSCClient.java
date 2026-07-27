@@ -4,6 +4,7 @@ import dev.csc.CSCMod;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -18,15 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.3.0 Hardened Edition
+ * CSC — Clientside Chat v1.3.1 Multi-Language Edition
  *
- * Security Features:
- *   - AES-256-GCM End-to-End Encryption (E2EE) for all chat messages
- *   - Dynamic Ephemeral Session Secrets (No static keys)
- *   - Brute-Force Rate Limiting & Auto IP Ban (5 failed auths = 5m ban)
- *   - Bounded Input Buffering (16KB max line limit to prevent DoS)
- *   - Dual-IP Automatic Fallback (Public IP -> LAN IP -> Localhost)
- *   - Dedicated Log System under %APPDATA%/.minecraft/csc/logs/
+ * Supports: EN, DE (mit Umlauten ä, ö, ü, ß), ES, FR, RU, ZH
+ * Uses Component.translatable(...) for native Minecraft internationalization.
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -37,7 +33,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.3.0 Hardened Client...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.3.1 Multi-Language Client...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -134,14 +130,14 @@ public class CSCClient implements ClientModInitializer {
                 .then(ClientCommands.literal("token")
                     .executes(ctx -> {
                         if (!currentToken.isEmpty()) {
-                            Component tokenComponent = Component.literal("§a[CSC] Session Token: §f§n" + currentToken)
+                            Component tokenComponent = Component.translatable("csc.chat.token_label", currentToken)
                                 .withStyle(Style.EMPTY.withClickEvent(
                                     new ClickEvent.CopyToClipboard(currentToken)
                                 ));
                             ctx.getSource().sendFeedback(tokenComponent);
-                            ctx.getSource().sendFeedback(Component.literal("§7  (Klicken zum Kopieren)"));
+                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.token_sub"));
                         } else {
-                            ctx.getSource().sendError(Component.literal("§c[CSC] Kein aktives Session Token vorhanden. Starte zuerst /csc host"));
+                            ctx.getSource().sendError(Component.literal("§c[CSC] No active Session Token. Start with /csc host"));
                         }
                         return 1;
                     })
@@ -152,19 +148,19 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.3.0 Hardened] Status\n";
-                        statusText += "§7  Dein Name: §f" + (myName.isEmpty() ? "§c(unbekannt)" : myName) + "\n";
-                        statusText += "§7  Verschlüsselung: §aAES-256-GCM E2EE\n";
+                        String statusText = "§b§l[CSC v1.3.1 Multi-Lang] Status\n";
+                        statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
+                        statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
                         if (hosting) {
-                            statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + " Spieler)\n";
+                            statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + ")\n";
                             if (!currentToken.isEmpty()) {
                                 statusText += "§7  Token: §f" + currentToken.substring(0, Math.min(20, currentToken.length())) + "...\n";
                             }
                         } else {
-                            statusText += "§7  Hosting: §c✘ Inaktiv\n";
+                            statusText += "§7  Hosting: §c✘ Inactive\n";
                         }
-                        statusText += "§7  Verbunden: " + (connected ? "§a✔ Ja" : "§c✘ Nein") + "\n";
-                        statusText += "§7  Log-Datei: §f" + LoggerHelper.getLogFile().toString();
+                        statusText += "§7  Connected: " + (connected ? "§a✔ Yes" : "§c✘ No") + "\n";
+                        statusText += "§7  Log File: §f" + LoggerHelper.getLogFile().toString();
                         ctx.getSource().sendFeedback(Component.literal(statusText));
                         return 1;
                     })
@@ -174,12 +170,11 @@ public class CSCClient implements ClientModInitializer {
                 .then(ClientCommands.literal("logs")
                     .executes(ctx -> {
                         String logPath = LoggerHelper.getLogFile().toString();
-                        Component logComponent = Component.literal("§a[CSC] Log-Datei: §f§n" + logPath)
+                        Component logComponent = Component.literal("§a[CSC] Log File: §f§n" + logPath)
                             .withStyle(Style.EMPTY.withClickEvent(
                                 new ClickEvent.CopyToClipboard(logPath)
                             ));
                         ctx.getSource().sendFeedback(logComponent);
-                        ctx.getSource().sendFeedback(Component.literal("§7  (Klicken zum Pfad-Kopieren. alle Logs unter %APPDATA%/.minecraft/csc/logs/)"));
                         return 1;
                     })
                 )
@@ -200,48 +195,45 @@ public class CSCClient implements ClientModInitializer {
                 String chatText = message.substring(1).trim();
                 if (chatText.isEmpty()) return false;
 
-                // Encrypt payload using AES-256-GCM E2EE
                 String encryptedText = CryptoHelper.encrypt(chatText, activeEncryptionSecret);
 
                 if (connection != null && connection.isConnected()) {
                     connection.sendMessage(encryptedText);
-                    showChat("§d[CSC] Du: §f" + chatText);
+                    showChat("§d[CSC] You: §f" + chatText);
                     return false;
                 }
 
                 if (relayServer != null && relayServer.isRunning()) {
                     String outJson = "{\"type\":\"msg\",\"sender\":\"" + RelayServer.escapeJson(myName) + "\",\"text\":\"" + RelayServer.escapeJson(encryptedText) + "\"}";
                     broadcastFromHost(myName, outJson);
-                    showChat("§d[CSC] Du: §f" + chatText);
+                    showChat("§d[CSC] You: §f" + chatText);
                     return false;
                 }
 
-                showChat("§c[CSC] Nicht verbunden und hostest nicht! Nutze /csc host oder /csc join <token>");
+                showComponent(Component.translatable("csc.chat.not_connected"));
                 return false;
             }
             return true;
         });
     }
 
-    private static void sendHelp(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal(
-            "§b§l[CSC v1.3.0 Hardened] Hilfe & Befehle\n" +
-            "§e/csc host §7[passwort] [max_spieler] [stunden] §f— Starte Server & generiere Token\n" +
-            "§e/csc join §7<token> §f— Anonym beitreten per Token (E2EE verschlüsselt!)\n" +
-            "§e/csc stop §f— Stoppe deinen eigenen Server\n" +
-            "§e/csc disconnect §f— Trenne aktuelle Verbindung\n" +
-            "§e/csc token §f— Zeige aktives Session Token\n" +
-            "§e/csc status §f— Zeige Host-, E2EE- & Status-Info\n" +
-            "§e/csc logs §f— Zeige Log-Dateien Pfad\n" +
-            "§e/ip §7[get] §f— Zeige deine IP\n" +
-            "§e#nachricht §f— Sende eine AES-256-GCM verschlüsselte Nachricht"
-        ));
+    private static void sendHelp(FabricClientCommandSource source) {
+        source.sendFeedback(Component.literal("§b§l").append(Component.translatable("csc.help.title")).append("\n")
+            .append(Component.translatable("csc.help.host")).append("\n")
+            .append(Component.translatable("csc.help.join")).append("\n")
+            .append(Component.translatable("csc.help.stop")).append("\n")
+            .append(Component.translatable("csc.help.disconnect")).append("\n")
+            .append(Component.translatable("csc.help.token")).append("\n")
+            .append(Component.translatable("csc.help.status")).append("\n")
+            .append(Component.translatable("csc.help.logs")).append("\n")
+            .append(Component.translatable("csc.help.ip")).append("\n")
+            .append(Component.translatable("csc.help.message")));
     }
 
     // ─── Host ────────────────────────────────────────────────────────────
-    private static void startHost(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source, String password, int maxPlayers, int durationHours) {
+    private static void startHost(FabricClientCommandSource source, String password, int maxPlayers, int durationHours) {
         if (relayServer != null && relayServer.isRunning()) {
-            source.sendError(Component.literal("§c[CSC] Du hostest bereits! Nutze zuerst /csc stop."));
+            source.sendError(Component.translatable("csc.chat.already_hosting"));
             return;
         }
 
@@ -271,14 +263,13 @@ public class CSCClient implements ClientModInitializer {
                 relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, maxPlayers, expiresAt, (type, sender, text) -> {
                     Minecraft.getInstance().execute(() -> {
                         switch (type) {
-                            case "connected" -> showChat("§a[CSC] §f" + sender + "§a ist dem privaten Chat beigetreten.");
-                            case "disconnected" -> showChat("§e[CSC] §f" + sender + "§e hat den privaten Chat verlassen.");
+                            case "connected" -> showComponent(Component.translatable("csc.chat.joined", sender));
+                            case "disconnected" -> showComponent(Component.translatable("csc.chat.left", sender));
                             case "msg" -> {
-                                // Decrypt AES-256-GCM incoming message
                                 String decrypted = CryptoHelper.decrypt(text, activeEncryptionSecret);
                                 showChat("§d[CSC] " + sender + ": §f" + decrypted);
                             }
-                            case "auth_fail" -> showChat("§c[CSC] " + sender + " konnte sich nicht authentifizieren.");
+                            case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                         }
                     });
                 });
@@ -288,35 +279,36 @@ public class CSCClient implements ClientModInitializer {
                 LoggerHelper.info("CSCClient", "Host started. Session Token: " + currentToken);
 
                 Minecraft.getInstance().execute(() -> {
-                    source.sendFeedback(Component.literal("§a[CSC] ✔ Server gestartet! §7(AES-256-GCM E2EE, Max. " + maxPlayers + " Spieler, " + durationHours + "h gültig)"));
+                    source.sendFeedback(Component.translatable("csc.chat.host_started", maxPlayers, durationHours));
                     
-                    Component tokenComponent = Component.literal("§a[CSC] Session Token: §f§n" + currentToken)
+                    Component tokenComponent = Component.literal("§a[CSC] ")
+                        .append(Component.translatable("csc.chat.token_label", currentToken))
                         .withStyle(Style.EMPTY.withClickEvent(
                             new ClickEvent.CopyToClipboard(currentToken)
                         ));
                     source.sendFeedback(tokenComponent);
-                    source.sendFeedback(Component.literal("§7  (Klicken zum Kopieren. Anonym & Ende-zu-Ende verschlüsselt!)"));
+                    source.sendFeedback(Component.translatable("csc.chat.token_sub"));
                 });
 
             } catch (Exception e) {
                 LoggerHelper.error("CSCClient", "Failed to start host: " + e.getMessage());
                 Minecraft.getInstance().execute(() -> {
-                    source.sendError(Component.literal("§c[CSC] Fehler beim Starten des Servers: " + e.getMessage()));
+                    source.sendError(Component.literal("§c[CSC] Error starting host: " + e.getMessage()));
                 });
             }
         }, "CSC-Host-Init").start();
     }
 
-    private static void stopHost(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
+    private static void stopHost(FabricClientCommandSource source) {
         if (relayServer != null && relayServer.isRunning()) {
             relayServer.stop();
             relayServer = null;
             currentToken = "";
             activeEncryptionSecret = "CSC_DEFAULT_SESSION_SECRET";
             LoggerHelper.info("CSCClient", "Host stopped by user.");
-            source.sendFeedback(Component.literal("§e[CSC] Hosting gestoppt."));
+            source.sendFeedback(Component.literal("§e[CSC] Host stopped."));
         } else {
-            source.sendError(Component.literal("§c[CSC] Du hostest aktuell nicht."));
+            source.sendError(Component.translatable("csc.chat.not_hosting"));
         }
     }
 
@@ -327,54 +319,54 @@ public class CSCClient implements ClientModInitializer {
     }
 
     // ─── Join via Token ──────────────────────────────────────────────────
-    private static void joinToken(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source, String tokenStr) {
+    private static void joinToken(FabricClientCommandSource source, String tokenStr) {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
             activeEncryptionSecret = data.password.isEmpty() ? data.sessionSecret : data.password;
 
-            LoggerHelper.info("CSCClient", "Joining session via Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp + ", Max=" + data.maxClients);
-            source.sendFeedback(Component.literal("§e[CSC] Session Token verifiziert! (AES-256-GCM E2EE aktiv) Verbinde..."));
+            LoggerHelper.info("CSCClient", "Joining session via Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
+            source.sendFeedback(Component.literal("§e[CSC] Token verified! Connecting..."));
             connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, data.password);
         } catch (SecurityException e) {
             LoggerHelper.warn("CSCClient", "Token security fail: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Token ungültig oder manipuliert!"));
+            source.sendError(Component.literal("§c[CSC] Token invalid or tampered!"));
         } catch (IllegalStateException e) {
             LoggerHelper.warn("CSCClient", "Token expired: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Dieses Session Token ist abgelaufen!"));
+            source.sendError(Component.literal("§c[CSC] Token expired!"));
         } catch (Exception e) {
             LoggerHelper.error("CSCClient", "Token parse error: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Ungültiges Token-Format."));
+            source.sendError(Component.literal("§c[CSC] Invalid token format."));
         }
     }
 
     // ─── Connect ─────────────────────────────────────────────────────────
-    private static void connectToHostWithFallback(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source, String publicHost, String lanHost, int port, String password) {
+    private static void connectToHostWithFallback(FabricClientCommandSource source, String publicHost, String lanHost, int port, String password) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
         }
 
         if (myName.isEmpty()) {
-            myName = "Spieler";
+            myName = "Player";
         }
 
         if (!password.isEmpty()) {
             activeEncryptionSecret = password;
         }
 
-        source.sendFeedback(Component.literal("§e[CSC] Verbinde zu Server..."));
+        source.sendFeedback(Component.literal("§e[CSC] Connecting..."));
 
         connection = new RelayConnection((type, sender, text) -> {
             Minecraft.getInstance().execute(() -> {
                 switch (type) {
-                    case "connected" -> showChat("§a[CSC] ✔ Erfolgreich verbunden (AES-256-GCM E2EE)! Schreibe §f#nachricht§a.");
+                    case "connected" -> showComponent(Component.translatable("csc.chat.connected"));
                     case "msg" -> {
                         String decrypted = CryptoHelper.decrypt(text, activeEncryptionSecret);
                         showChat("§d[CSC] " + sender + ": §f" + decrypted);
                     }
                     case "system" -> showChat("§e[CSC] " + text);
-                    case "auth_fail" -> showChat("§c[CSC] Authentifizierung fehlgeschlagen: " + text);
-                    case "disconnected" -> showChat("§c[CSC] Verbindung getrennt: " + text);
-                    case "error" -> showChat("§c[CSC] Fehler: " + text);
+                    case "auth_fail" -> showChat("§c[CSC] Auth failed: " + text);
+                    case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
+                    case "error" -> showChat("§c[CSC] Error: " + text);
                 }
             });
         });
@@ -382,27 +374,25 @@ public class CSCClient implements ClientModInitializer {
         connection.connectWithFallback(publicHost, lanHost, port, myName, password).thenAccept(success -> {
             if (!success) {
                 Minecraft.getInstance().execute(() -> {
-                    showChat("§c[CSC] Verbindung fehlgeschlagen.");
-                    showChat("§7  • Falls über das Internet: Port 49156 (TCP) im Router freigeben oder Hamachi/Radmin nutzen.");
-                    showChat("§7  • Falls auf demselben PC / LAN: Überprüfe ob der Host /csc host gestartet hat.");
+                    showChat("§c[CSC] Connection failed.");
                 });
             }
         });
     }
 
-    private static void disconnectFromHost(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
+    private static void disconnectFromHost(FabricClientCommandSource source) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
             activeEncryptionSecret = "CSC_DEFAULT_SESSION_SECRET";
             LoggerHelper.info("CSCClient", "Disconnected by user.");
-            source.sendFeedback(Component.literal("§e[CSC] Verbindung getrennt."));
+            source.sendFeedback(Component.literal("§e[CSC] Disconnected."));
         } else {
-            source.sendError(Component.literal("§c[CSC] Nicht verbunden."));
+            source.sendError(Component.literal("§c[CSC] Not connected."));
         }
     }
 
-    private static void fetchPublicIp(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§7[CSC] Ermittle deine öffentliche IP..."));
+    private static void fetchPublicIp(FabricClientCommandSource source) {
+        source.sendFeedback(Component.literal("§7[CSC] Fetching public IP..."));
 
         new Thread(() -> {
             try {
@@ -415,19 +405,19 @@ public class CSCClient implements ClientModInitializer {
                 String ip = response.body().trim();
 
                 Minecraft.getInstance().execute(() -> {
-                    Component ipComponent = Component.literal("§a[CSC] Deine öffentliche IP: §f§n" + ip)
+                    Component ipComponent = Component.literal("§a[CSC] ")
+                        .append(Component.translatable("csc.chat.ip_label", ip))
                         .withStyle(Style.EMPTY.withClickEvent(
                             new ClickEvent.CopyToClipboard(ip)
                         ));
                     Minecraft mc = Minecraft.getInstance();
                     if (mc.player != null) {
                         mc.player.sendSystemMessage(ipComponent);
-                        mc.player.sendSystemMessage(Component.literal("§7  Klicken zum Kopieren. (Tipp: Nutze lieber Session Tokens mit /csc host!)"));
                     }
                 });
             } catch (Exception e) {
                 Minecraft.getInstance().execute(() -> {
-                    showChat("§c[CSC] IP-Abfrage fehlgeschlagen: " + e.getMessage());
+                    showChat("§c[CSC] IP fetch failed: " + e.getMessage());
                 });
             }
         }, "CSC-IP-Fetch").start();
@@ -437,6 +427,13 @@ public class CSCClient implements ClientModInitializer {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             client.player.sendSystemMessage(Component.literal(text));
+        }
+    }
+
+    private static void showComponent(Component comp) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            client.player.sendSystemMessage(comp);
         }
     }
 }

@@ -12,10 +12,6 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * AES-256-GCM End-to-End Encryption (E2EE) helper.
- * Derives strong keys using PBKDF2WithHmacSHA256 with random salt & IV per message.
- */
 public class CryptoHelper {
     private static final int KEY_LENGTH = 256;
     private static final int ITERATION_COUNT = 65536;
@@ -50,13 +46,13 @@ public class CryptoHelper {
             return "ENC:" + Base64.getEncoder().encodeToString(byteBuffer.array());
         } catch (Exception e) {
             LoggerHelper.error("CryptoHelper", "Encryption error: " + e.getMessage());
-            return plaintext; // Fallback to plaintext if error
+            return plaintext;
         }
     }
 
     public static String decrypt(String ciphertextStr, String secretPassword) {
         if (ciphertextStr == null || !ciphertextStr.startsWith("ENC:")) {
-            return ciphertextStr; // Not encrypted or plaintext
+            return ciphertextStr;
         }
         if (secretPassword == null || secretPassword.isEmpty()) {
             secretPassword = "CSC_DEFAULT_SESSION_SECRET";

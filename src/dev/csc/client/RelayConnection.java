@@ -5,10 +5,6 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * TCP client that connects to a CSC RelayServer.
- * Supports automatic multi-IP fallback (Public IP -> LAN IP -> Localhost) for instant P2P/LAN connections.
- */
 public class RelayConnection {
     private Socket socket;
     private BufferedWriter writer;
@@ -143,9 +139,7 @@ public class RelayConnection {
         }
     }
 
-    public boolean isConnected() {
-        return connected;
-    }
+    public boolean isConnected() { return connected; }
 
     public void disconnect() {
         connected = false;

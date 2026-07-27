@@ -8,10 +8,6 @@ import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * Encodes, decodes, signs, and validates CSC Session Tokens (CSC-XXXX...).
- * Uses dynamic ephemeral session keys generated per host instance.
- */
 public class TokenHelper {
     public static class SessionTokenData {
         public String publicIp;

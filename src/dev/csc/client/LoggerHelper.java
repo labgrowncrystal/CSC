@@ -6,10 +6,6 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Dedicated logger for CSC.
- * Saves logs to %APPDATA%/.minecraft/csc/logs/csc-latest.log
- */
 public class LoggerHelper {
     private static final Path LOG_DIR = Paths.get(
         System.getProperty("user.home"),
@@ -26,7 +22,7 @@ public class LoggerHelper {
                 Files.newOutputStream(LOG_FILE, StandardOpenOption.CREATE, StandardOpenOption.APPEND),
                 StandardCharsets.UTF_8
             ), true);
-            log("INFO", "System", "=== CSC Logger Initialized (v1.3.0 Hardened) ===");
+            log("INFO", "System", "=== CSC Logger Initialized (v1.3.1 Multi-Lang) ===");
         } catch (Exception e) {
             System.err.println("[CSC Logger] Failed to initialize logger: " + e.getMessage());
         }
@@ -42,19 +38,8 @@ public class LoggerHelper {
         }
     }
 
-    public static void info(String component, String message) {
-        log("INFO", component, message);
-    }
-
-    public static void warn(String component, String message) {
-        log("WARN", component, message);
-    }
-
-    public static void error(String component, String message) {
-        log("ERROR", component, message);
-    }
-
-    public static Path getLogFile() {
-        return LOG_FILE;
-    }
+    public static void info(String component, String message) { log("INFO", component, message); }
+    public static void warn(String component, String message) { log("WARN", component, message); }
+    public static void error(String component, String message) { log("ERROR", component, message); }
+    public static Path getLogFile() { return LOG_FILE; }
 }
