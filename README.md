@@ -1,80 +1,85 @@
-# Clientside Chat (CSC) v1.7.0 — Audio Feedback & Modern UI Badge Edition
+# Clientside Chat (CSC) v1.9.2 — Encrypted P2P Chat for Minecraft
 
 **Server-Admin Private P2P Messaging for Minecraft — zero server-side plugins or external web servers required.**
 
-CSC enables private, encrypted peer-to-peer chat between Minecraft players. Chat messages never touch the Minecraft game server and are invisible to server admins. Fully open-source and reproducibly buildable with Gradle under the MIT License.
+CSC enables private, encrypted peer-to-peer chat between Minecraft players. Messages pass directly over TCP sockets between client instances, bypassing the Minecraft game server entirely. Fully open-source under the MIT License and buildable with Gradle.
 
 ---
 
-## ⚠️ Server Rules Disclaimer
+## ⚠️ Server Rules & Usage Disclaimer
 
-> **Disclaimer:** CSC is designed for private communication between consenting friends on private servers. Using client-side private messaging mods may violate the Terms of Service or chat policy of certain public Minecraft servers. Users are solely responsible for ensuring compliance with local server rules.
+> **Disclaimer:** CSC is designed for private communication between consenting friends. Using client-side messaging mods may violate the Terms of Service or chat policy of certain public Minecraft servers. Users are responsible for ensuring compliance with their local server rules.
 
 ---
 
-## ✨ Features & Security Architecture
+## 🔒 Security Architecture & Features
 
-- 🔔 **In-Game Sound Notifications & Mention Pings** — Plays subtle Minecraft sound effects on incoming private `#` messages and distinct chime pings when mentioned (`@YourName`).
-- 🎨 **Modern Chat Badges & Interactive Copy Button** — Features stylized color-coded chat prefix badges (`[CSC]`) and interactive `[ COPY TOKEN ]` buttons with hover tooltips.
-- 📦 **Ultra-Compact Session Tokens (~147 chars)** — Versioned binary token schema with CRC16 tamper verification that easily fits inside Minecraft's 256-character chat limit with 100+ characters of headroom.
-- 🛠️ **100% Reproducible Build System** — Full Gradle build pipeline (`build.gradle`, `settings.gradle`, `gradle.properties`, `gradlew`) in the repository for clean compilation across Windows, macOS, and Linux.
-- 📄 **MIT Open Source License** — Fully open-source code under the MIT License.
-- 🛡️ **Server-Admin Private P2P** — Chat messages bypass the game server entirely via direct P2P TCP sockets.
-- 🔐 **Elliptic Curve Diffie-Hellman (ECDH `secp256r1`)** — Dynamic ephemeral key agreement generated live over TCP.
-- 🔑 **Host Public Key Pinning (MitM Protection)** — Clients verify the server's public key against the session token during the handshake, protecting against active Man-in-the-Middle network attacks.
-- 🔒 **Zero-Secret Session Tokens** — Tokens contain no passwords, keys, or secrets (only connection routing info and Host EC public key). Token leaks cannot compromise chat privacy.
-- 🙈 **Universal Regex IP Masking & Token Redaction** — Centralized regex filters automatically mask IP addresses (`192.168.1.***`) and session tokens in `%APPDATA%/.minecraft/csc/logs/csc-latest.log`. Log files rotate automatically at 250 KB.
-- ⏱️ **Constant-Time Password Comparison** — Password hashes are verified using `MessageDigest.isEqual` to prevent side-channel timing attacks.
-- 🎭 **Password-First Auth & Anti-Spoofing** — Prevents active player name enumeration and duplicate player name spoofing within sessions.
-- 🚫 **Message Rate-Limiting & Auto IP Ban** — Limits message throughput to 10 msgs/sec and automatically bans IPs for 5 minutes after 5 failed login attempts.
-- 🌐 **Dual-IP Automatic Fallback** — Seamlessly connects via Public WAN IP, LAN IP, or Localhost (127.0.0.1) automatically.
-- 🌍 **Multi-Language Support** — Fully localized in English, German (with proper umlauts), Spanish, French, Russian, and Simplified Chinese.
+- 🔐 **ECDH Key Agreement & AES-256-GCM** — Ephemeral Elliptic Curve Diffie-Hellman (`secp256r1`) key exchange over TCP, followed by AES-256-GCM authenticated encryption for all chat payloads.
+- 🔑 **Host Public Key Pinning** — Clients verify the host's public key against the Session Token during handshake to protect against Man-in-the-Middle (MitM) network tampering.
+- ⏱️ **Constant-Time Password Verification** — Optional password hashes are checked using `MessageDigest.isEqual` to mitigate side-channel timing attacks.
+- 🙈 **IP Masking & Privacy Logging** — Centralized regex filters mask IP addresses (`192.168.1.***`) and tokens in `%APPDATA%/.minecraft/csc/logs/csc-latest.log`. Log files rotate automatically at 250 KB.
+- 📦 **Compact Binary Session Tokens (~147 chars)** — Binary token schema containing routing details and the host's public key. Includes a 16-bit CRC checksum to catch accidental copy/paste or transcription errors.
+- 💬 **Direct Private Whispering** — Send 1-on-1 encrypted whispers within group sessions using `#/msg <player> <text>` or `/csc msg <player> <text>`.
+- 📋 **In-Game Session Player List** — Display active players and session state with `/csc list`.
+- 🎵 **Selectable Sound Notifications** — Choose custom sound effects (`bell`, `ping`, `orb`, `click`, `anvil`, `off`) with mention pings (`@YourName`).
+- 🔖 **Server Bookmarks / Favorites** — Save favorite session tokens or IPs locally (`/csc bookmark add|join|list|remove`).
+- 👮 **Host Moderation Suite** — Manage sessions with `/csc kick`, `/csc ban`, `/csc unban #ID` (using unique Ban IDs to prevent anonymized IP collisions), and `/csc banlist`.
+- 🧩 **Fabric ModMenu Integration** — Official metadata and link integration for Fabric ModMenu.
+- 🌐 **Multi-Language Support** — Fully localized in English, German, Spanish, French, Russian, and Simplified Chinese.
 
 ---
 
 ## 📖 Quick Start
 
-### Hosting
+### 1. Hosting a Session
 
-Start a private session and get a Session Token:
+Start a host session and generate a Session Token:
 ```
 /csc host [password] [max_players] [duration_hours]
 ```
-Example: `/csc host mySecretPass 2 24`
+*Example:* `/csc host mySecretPass 4 24`
 
-Click the `[ COPY TOKEN ]` button in chat to copy the Session Token to your clipboard and send it to your friend.
+Click `[ COPY TOKEN ]` in the chat to copy the token to your clipboard and share it with your friends.
 
-### Joining
+> **Security Note:** If no password is specified when hosting, session access relies on keeping the Session Token private. Setting a password adds authentication protection.
 
-Join a friend's session using their Session Token or direct IP:
+### 2. Joining a Session
+
+Join a host session using a Session Token, saved bookmark, or IP address:
 ```
-/csc join <token|ip> [password]
+/csc join <token|ip|bookmark> [password]
 ```
 
-### Secret Chatting
+### 3. Sending Encrypted Messages
 
-Put `#` before any chat message:
+Prefix any message with `#` in normal Minecraft chat:
 ```
-#Hey! The server admin cannot see this message.
+#Hey! This message goes directly over our encrypted P2P channel.
 ```
 
 ---
 
-## 🔧 Commands
+## 🔧 Commands Reference
 
 | Command | Description |
 |---|---|
 | `/csc host [password] [max] [hours]` | Host a session & generate Session Token |
-| `/csc join <token\|ip> [password]` | Join session via Session Token or IP |
-| `/csc connect <token\|ip> [password]` | Alias for `/csc join` |
-| `/csc sound [on\|off]` | Toggle notification sounds & mention pings |
-| `/csc stop` | Stop hosting |
+| `/csc join <token\|ip\|bookmark> [password]` | Join a session via Token, IP, or Bookmark |
+| `/csc msg <player> <text>` | Send a direct whisper (or use `#/msg <player> <text>`) |
+| `/csc list` | Display connected players in active session |
+| `/csc bookmark [add\|join\|list\|remove]` | Manage favorite server bookmarks |
+| `/csc sound [bell\|ping\|orb\|click\|anvil\|off]` | Change or toggle sound notifications |
+| `/csc kick <player> [reason]` | Kick a player from your host session |
+| `/csc ban <player> [reason]` | Ban a player's IP for 24 hours |
+| `/csc unban <#ID\|ip>` | Unban an IP using its Ban ID (#1, #2...) or IP |
+| `/csc banlist` | Display active banned entries with IDs |
+| `/csc stop` | Stop your host server |
 | `/csc disconnect` | Disconnect from active session |
 | `/csc token` | Show your active Session Token |
-| `/csc status` | Show hosting, connection, ECDH & Key Pinning status |
-| `/csc logs` | Show log file path (click to copy) |
-| `/ip` | Show your public IP |
-| `/csc help` | In-game command reference |
+| `/csc status` | Show hosting, connection, ECDH & key pinning status |
+| `/csc logs` | Display log file path (click to copy) |
+| `/ip [get]` | Fetch and display your public IPv4 address |
+| `/csc help` | Show in-game command reference |
 
 ---
 
@@ -84,7 +89,7 @@ Build the project locally using Gradle:
 ```bash
 ./gradlew build
 ```
-The compiled JAR artifact will be located under `build/libs/csc-1.7.0.jar`.
+The output JAR file will be saved in `build/libs/csc-1.9.2.jar`.
 
 ---
 
