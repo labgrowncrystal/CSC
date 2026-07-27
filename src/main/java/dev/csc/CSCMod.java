@@ -8,6 +8,6 @@ public class CSCMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        System.out.println("[CSC] Clientside Chat v1.5.6 Production Key Pinning Verification Test Suite loaded.");
+        System.out.println("[CSC] Clientside Chat v1.5.7 Clean Production Key Pinning Verification loaded.");
     }
 }

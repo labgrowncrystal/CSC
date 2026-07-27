@@ -92,8 +92,7 @@ public class RelayConnection {
                 callback.onEvent("mitm_error", "", "");
                 disconnect();
                 return false;
-            }
-            if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
+            } else if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
                 LoggerHelper.info("ClientConnection", "✔ Host Public Key Pinning Verified Successfully!");
             }
 
