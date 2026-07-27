@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "csc",
+	"version": "${version}",
+	"name": "Clientside Chat (CSC)",
+	"description": "A client-side private chat mod with Reproducible Build, MIT License, Host Public Key Pinning, ECDH Key Agreement, AES-256-GCM E2EE, Universal IP Masking, and Rate Limiting.",
+	"authors": ["WantingHades901"],
+	"contact": { "sources": "https://github.com/WantingHades901/csc" },
+	"license": "MIT",
+	"icon": "assets/csc/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": ["dev.csc.CSCMod"],
+		"client": ["dev.csc.client.CSCClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"fabric-api": "*",
+		"minecraft": "~26.2",
+		"java": ">=25"
+	}
+}

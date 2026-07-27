@@ -19,9 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.4.4 Complete Leak Protection Edition
+ * CSC — Clientside Chat v1.5.0 Reproducible & Hardened Edition
  *
- * Universal Regex IP Anonymization & Token Masking guarantees zero IP/Token leaks in log outputs.
+ * Fully open-source, reproducible Gradle build, MIT licensed, with defensive input clamping,
+ * Host Public Key Pinning, ECDH Key Agreement, AES-256-GCM E2EE, and Universal IP Masking.
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -31,7 +32,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.4 (Universal IP Masking)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.5.0 (Reproducible Build & Input Clamping)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -138,7 +139,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.4.4 Complete Protection] Status\n";
+                        String statusText = "§b§l[CSC v1.5.0 Reproducible Build] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
@@ -224,6 +225,10 @@ public class CSCClient implements ClientModInitializer {
             return;
         }
 
+        // Defensive Input Clamping
+        final int finalMaxPlayers = Math.max(2, Math.min(50, maxPlayers));
+        final int finalDurationHours = Math.max(1, Math.min(168, durationHours));
+
         LoggerHelper.info("CSCClient", "Generating ECDH Host KeyPair...");
 
         new Thread(() -> {
@@ -243,9 +248,9 @@ public class CSCClient implements ClientModInitializer {
                 }
 
                 String lanIp = TokenHelper.getLocalLanIp();
-                long expiresAt = System.currentTimeMillis() + ((long) durationHours * 3600 * 1000);
+                long expiresAt = System.currentTimeMillis() + ((long) finalDurationHours * 3600 * 1000);
 
-                relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, maxPlayers, expiresAt, hostKeyPair, (type, sender, text) -> {
+                relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, finalMaxPlayers, expiresAt, hostKeyPair, (type, sender, text) -> {
                     Minecraft.getInstance().execute(() -> {
                         switch (type) {
                             case "connected" -> showComponent(Component.translatable("csc.chat.joined", sender));
@@ -257,11 +262,11 @@ public class CSCClient implements ClientModInitializer {
                 });
                 relayServer.start();
 
-                currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, durationHours, maxPlayers, hostKeyPair.publicKeyBase64);
+                currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, finalDurationHours, finalMaxPlayers, hostKeyPair.publicKeyBase64);
                 LoggerHelper.info("CSCClient", "Host started. ECDH Session Token generated: " + currentToken);
 
                 Minecraft.getInstance().execute(() -> {
-                    source.sendFeedback(Component.translatable("csc.chat.host_started", maxPlayers, durationHours));
+                    source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
                     
                     Component tokenComponent = Component.literal("§a[CSC] ")
                         .append(Component.translatable("csc.chat.token_label", currentToken))
@@ -303,7 +308,6 @@ public class CSCClient implements ClientModInitializer {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
 
-            // Anonymize IP outputs in logs
             LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + LoggerHelper.anonymizeIp(data.publicIp) + ", LAN IP=" + LoggerHelper.anonymizeIp(data.lanIp));
             source.sendFeedback(Component.translatable("csc.chat.token_verified"));
             connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "", data.hostPubKey);
