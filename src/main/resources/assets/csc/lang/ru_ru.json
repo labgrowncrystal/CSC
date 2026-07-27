@@ -1,7 +1,7 @@
 {
   "csc.help.title": "Clientside Chat — Список команд",
   "csc.help.host": "/csc host [пароль] [макс_игроков] [часы] — Создать сервер и сгенерировать Токен",
-  "csc.help.join": "/csc join <токен> — Подключиться по Токену (E2EE шифрование)",
+  "csc.help.join": "/csc join <токен> — Подключиться по Токену (Key Pinning & E2EE)",
   "csc.help.stop": "/csc stop — Остановить сервер",
   "csc.help.disconnect": "/csc disconnect — Отключиться",
   "csc.help.token": "/csc token — Показать активный Токен",
@@ -21,5 +21,18 @@
   "csc.chat.host_started": "✔ Сервер запущен (AES-256-GCM E2EE, Макс. %d игроков, %dh)",
   "csc.chat.token_label": "Токен сессии: %s",
   "csc.chat.token_sub": "(Нажмите для копирования. Сквозное шифрование!)",
-  "csc.chat.ip_label": "Ваш публичный IP: %s"
+  "csc.chat.ip_label": "Ваш публичный IP: %s",
+
+  "csc.chat.connecting": "Подключение через ECDH с Key Pinning...",
+  "csc.chat.connect_fail": "Ошибка подключения.",
+  "csc.chat.host_stopped": "Сервер остановлен.",
+  "csc.chat.user_disconnected": "Отключено.",
+  "csc.chat.no_active_token": "Нет активного токена. Запустите /csc host",
+  "csc.chat.fetching_ip": "Получение публичного IP...",
+  "csc.chat.ip_fetch_fail": "Ошибка получения IP: %s",
+  "csc.chat.mitm_alert": "ОШИБКА БЕЗОПАСНОСТИ: Несовпадение ключей (Атака MitM предотвращена)",
+  "csc.chat.token_verified": "Токен проверен! Подключение...",
+  "csc.chat.token_invalid": "Недействительный токен!",
+  "csc.chat.token_expired": "Токен истек!",
+  "csc.chat.token_format_error": "Неверный формат токена."
 }

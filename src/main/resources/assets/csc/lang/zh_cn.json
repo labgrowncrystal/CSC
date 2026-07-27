@@ -1,7 +1,7 @@
 {
   "csc.help.title": "Clientside Chat — 指令列表",
   "csc.help.host": "/csc host [密码] [最大人数] [时长] — 创建服务器并生成令牌",
-  "csc.help.join": "/csc join <令牌> — 使用令牌匿名加入 (E2EE加密)",
+  "csc.help.join": "/csc join <令牌> — 使用令牌匿名加入 (Key Pinning & E2EE)",
   "csc.help.stop": "/csc stop — 停止主机",
   "csc.help.disconnect": "/csc disconnect — 断开连接",
   "csc.help.token": "/csc token — 显示当前令牌",
@@ -21,5 +21,18 @@
   "csc.chat.host_started": "✔ 主机已启动！(AES-256-GCM E2EE，最多 %d 人，有效 %d 小时)",
   "csc.chat.token_label": "会话令牌：%s",
   "csc.chat.token_sub": "(点击复制。端到端加密！)",
-  "csc.chat.ip_label": "你的公网IP：%s"
+  "csc.chat.ip_label": "你的公网IP：%s",
+
+  "csc.chat.connecting": "正在通过 ECDH 和密钥固定建立连接...",
+  "csc.chat.connect_fail": "连接失败。",
+  "csc.chat.host_stopped": "主机已停止。",
+  "csc.chat.user_disconnected": "已断开连接。",
+  "csc.chat.no_active_token": "无有效令牌。请先运行 /csc host",
+  "csc.chat.fetching_ip": "正在获取公网IP...",
+  "csc.chat.ip_fetch_fail": "获取IP失败：%s",
+  "csc.chat.mitm_alert": "安全警告：公钥不匹配！（已防止 MitM 攻击）",
+  "csc.chat.token_verified": "令牌验证成功！正在连接...",
+  "csc.chat.token_invalid": "令牌无效或已被篡改！",
+  "csc.chat.token_expired": "令牌已过期！",
+  "csc.chat.token_format_error": "令牌格式无效。"
 }

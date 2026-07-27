@@ -79,7 +79,7 @@ public class RelayConnection {
             if (expectedHostPubKey != null && !expectedHostPubKey.isEmpty()) {
                 if (!CryptoHelper.constantTimeEquals(serverPubKey, expectedHostPubKey)) {
                     LoggerHelper.error("ClientConnection", "SECURITY ALERT: Man-in-the-Middle (MitM) Attempt Detected! Server Public Key does not match Token Key Pinning!");
-                    callback.onEvent("error", "", "SECURITY ALERT: Server Public Key mismatch (MitM Attack Prevented)");
+                    callback.onEvent("mitm_error", "", "");
                     disconnect();
                     return false;
                 }

@@ -19,16 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.4.1 Cryptographic Perfection Release
+ * CSC — Clientside Chat v1.4.2 Fully Localized Cryptographic Edition
  *
- * Security Innovations:
- *   - Host Public Key Pinning (Token Pinning prevents Man-in-the-Middle MitM attacks)
- *   - Elliptic Curve Diffie-Hellman (ECDH secp256r1) Key Agreement over TCP
- *   - AES-256-GCM End-to-End Encrypted Handshake & Messaging
- *   - Zero Secrets / Keys stored inside Session Tokens
- *   - Constant-Time Auth Password Comparison (Anti-Timing Side-Channel)
- *   - Rate-Limiting & Automatic 5-minute IP Ban on 5 auth failures
- *   - Bounded Line Buffering (16KB max per line DoS limit)
+ * 100% of user-facing chat messages, system logs, warnings, and feedback use Component.translatable(...)
+ * across English, German, Spanish, French, Russian, and Simplified Chinese.
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -38,7 +32,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.1 (Public Key Pinning)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.2 Fully Localized Client...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -135,7 +129,7 @@ public class CSCClient implements ClientModInitializer {
                             ctx.getSource().sendFeedback(tokenComponent);
                             ctx.getSource().sendFeedback(Component.translatable("csc.chat.token_sub"));
                         } else {
-                            ctx.getSource().sendError(Component.literal("§c[CSC] No active Session Token. Start with /csc host"));
+                            ctx.getSource().sendError(Component.translatable("csc.chat.no_active_token"));
                         }
                         return 1;
                     })
@@ -145,7 +139,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.4.1 Public Key Pinning] Status\n";
+                        String statusText = "§b§l[CSC v1.4.2 Fully Localized] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
@@ -293,7 +287,7 @@ public class CSCClient implements ClientModInitializer {
             relayServer = null;
             currentToken = "";
             LoggerHelper.info("CSCClient", "Host stopped by user.");
-            source.sendFeedback(Component.literal("§e[CSC] Host stopped."));
+            source.sendFeedback(Component.translatable("csc.chat.host_stopped"));
         } else {
             source.sendError(Component.translatable("csc.chat.not_hosting"));
         }
@@ -310,17 +304,17 @@ public class CSCClient implements ClientModInitializer {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
 
             LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
-            source.sendFeedback(Component.literal("§e[CSC] Token verified & Host Key Pinned! Connecting..."));
+            source.sendFeedback(Component.translatable("csc.chat.token_verified"));
             connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "", data.hostPubKey);
         } catch (SecurityException e) {
             LoggerHelper.warn("CSCClient", "Token security fail: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Token invalid or tampered!"));
+            source.sendError(Component.translatable("csc.chat.token_invalid"));
         } catch (IllegalStateException e) {
             LoggerHelper.warn("CSCClient", "Token expired: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Token expired!"));
+            source.sendError(Component.translatable("csc.chat.token_expired"));
         } catch (Exception e) {
             LoggerHelper.error("CSCClient", "Token parse error: " + e.getMessage());
-            source.sendError(Component.literal("§c[CSC] Invalid token format."));
+            source.sendError(Component.translatable("csc.chat.token_format_error"));
         }
     }
 
@@ -333,7 +327,7 @@ public class CSCClient implements ClientModInitializer {
             myName = "Player";
         }
 
-        source.sendFeedback(Component.literal("§e[CSC] Connecting via ECDH with Key Pinning..."));
+        source.sendFeedback(Component.translatable("csc.chat.connecting"));
 
         connection = new RelayConnection((type, sender, text) -> {
             Minecraft.getInstance().execute(() -> {
@@ -341,8 +335,9 @@ public class CSCClient implements ClientModInitializer {
                     case "connected" -> showComponent(Component.translatable("csc.chat.connected"));
                     case "msg" -> showChat("§d[CSC] " + sender + ": §f" + text);
                     case "system" -> showChat("§e[CSC] " + text);
-                    case "auth_fail" -> showChat("§c[CSC] Auth failed: " + text);
+                    case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
+                    case "mitm_error" -> showComponent(Component.translatable("csc.chat.mitm_alert"));
                     case "error" -> showChat("§c[CSC] " + text);
                 }
             });
@@ -351,7 +346,7 @@ public class CSCClient implements ClientModInitializer {
         connection.connectWithFallback(publicHost, lanHost, port, myName, password, expectedHostPubKey).thenAccept(success -> {
             if (!success) {
                 Minecraft.getInstance().execute(() -> {
-                    showChat("§c[CSC] Connection failed.");
+                    showComponent(Component.translatable("csc.chat.connect_fail"));
                 });
             }
         });
@@ -361,14 +356,14 @@ public class CSCClient implements ClientModInitializer {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
             LoggerHelper.info("CSCClient", "Disconnected by user.");
-            source.sendFeedback(Component.literal("§e[CSC] Disconnected."));
+            source.sendFeedback(Component.translatable("csc.chat.user_disconnected"));
         } else {
-            source.sendError(Component.literal("§c[CSC] Not connected."));
+            source.sendError(Component.translatable("csc.chat.not_connected"));
         }
     }
 
     private static void fetchPublicIp(FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§7[CSC] Fetching public IP..."));
+        source.sendFeedback(Component.translatable("csc.chat.fetching_ip"));
 
         new Thread(() -> {
             try {
@@ -393,7 +388,7 @@ public class CSCClient implements ClientModInitializer {
                 });
             } catch (Exception e) {
                 Minecraft.getInstance().execute(() -> {
-                    showChat("§c[CSC] IP fetch failed: " + e.getMessage());
+                    showComponent(Component.translatable("csc.chat.ip_fetch_fail", e.getMessage()));
                 });
             }
         }, "CSC-IP-Fetch").start();

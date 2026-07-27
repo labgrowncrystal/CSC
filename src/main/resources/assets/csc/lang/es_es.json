@@ -1,7 +1,7 @@
 {
   "csc.help.title": "Clientside Chat — Comandos",
   "csc.help.host": "/csc host [contraseña] [max_jugadores] [horas] — Crear servidor y generar Token",
-  "csc.help.join": "/csc join <token> — Unirse mediante Token (E2EE activo)",
+  "csc.help.join": "/csc join <token> — Unirse mediante Token (Key Pinning & E2EE)",
   "csc.help.stop": "/csc stop — Detener servidor",
   "csc.help.disconnect": "/csc disconnect — Desconectarse",
   "csc.help.token": "/csc token — Mostrar Token activo",
@@ -21,5 +21,18 @@
   "csc.chat.host_started": "✔ Servidor iniciado (AES-256-GCM E2EE, Máx. %d jugadores, %dh válido)",
   "csc.chat.token_label": "Token de sesión: %s",
   "csc.chat.token_sub": "(Haz clic para copiar. ¡Encriptado de extremo a extremo!)",
-  "csc.chat.ip_label": "Tu IP pública: %s"
+  "csc.chat.ip_label": "Tu IP pública: %s",
+
+  "csc.chat.connecting": "Conectando mediante ECDH con Key Pinning...",
+  "csc.chat.connect_fail": "Conexión fallida.",
+  "csc.chat.host_stopped": "Servidor detenido.",
+  "csc.chat.user_disconnected": "Desconectado.",
+  "csc.chat.no_active_token": "Sin token activo. Inicia con /csc host",
+  "csc.chat.fetching_ip": "Obteniendo IP pública...",
+  "csc.chat.ip_fetch_fail": "Error al obtener IP: %s",
+  "csc.chat.mitm_alert": "ALERTA DE SEGURIDAD: Discrepancia de clave (Ataque MitM evitado)",
+  "csc.chat.token_verified": "¡Token verificado! Conectando...",
+  "csc.chat.token_invalid": "¡Token no válido!",
+  "csc.chat.token_expired": "¡Token expirado!",
+  "csc.chat.token_format_error": "Formato de token no válido."
 }

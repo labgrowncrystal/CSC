@@ -1,7 +1,7 @@
 {
   "csc.help.title": "Clientside Chat — Commandes",
   "csc.help.host": "/csc host [mot_de_passe] [max_joueurs] [heures] — Héberger un serveur & générer Token",
-  "csc.help.join": "/csc join <token> — Rejoindre anonymement via Token (E2EE actif)",
+  "csc.help.join": "/csc join <token> — Rejoindre anonymement via Token (Key Pinning & E2EE)",
   "csc.help.stop": "/csc stop — Arrêter l'hébergement",
   "csc.help.disconnect": "/csc disconnect — Se déconnecter",
   "csc.help.token": "/csc token — Afficher le Token actif",
@@ -21,5 +21,18 @@
   "csc.chat.host_started": "✔ Serveur démarré (AES-256-GCM E2EE, Max. %d joueurs, %dh valide)",
   "csc.chat.token_label": "Jeton de session : %s",
   "csc.chat.token_sub": "(Cliquez pour copier. Chiffré de bout en bout !)",
-  "csc.chat.ip_label": "Votre IP publique : %s"
+  "csc.chat.ip_label": "Votre IP publique : %s",
+
+  "csc.chat.connecting": "Connexion via ECDH avec Key Pinning...",
+  "csc.chat.connect_fail": "Échec de connexion.",
+  "csc.chat.host_stopped": "Hébergement arrêté.",
+  "csc.chat.user_disconnected": "Déconnecté.",
+  "csc.chat.no_active_token": "Aucun jeton actif. Démarrez avec /csc host",
+  "csc.chat.fetching_ip": "Obtention de l'IP publique...",
+  "csc.chat.ip_fetch_fail": "Échec de récupération IP : %s",
+  "csc.chat.mitm_alert": "ALERTE DE SÉCURITÉ : Clé non correspondante (Attaque MitM évitée)",
+  "csc.chat.token_verified": "Jeton vérifié ! Connexion...",
+  "csc.chat.token_invalid": "Jeton invalide !",
+  "csc.chat.token_expired": "Jeton expiré !",
+  "csc.chat.token_format_error": "Format de jeton invalide."
 }
