@@ -1,4 +1,4 @@
-# Clientside Chat (CSC) v1.4.1 — Cryptographic Perfection Release
+# Clientside Chat (CSC) v1.4.1 — Security Hardened Release
 
 **Elliptic Curve Diffie-Hellman (ECDH) & Host Public Key Pinned private messaging across any Minecraft server — completely invisible to server admins. Zero external tools required.**
 
@@ -6,10 +6,10 @@ CSC lets you and your friends chat privately inside Minecraft. Messages never to
 
 ---
 
-## ✨ Security & Key Features
+## ✨ Security & Features
 
 - 🔐 **Elliptic Curve Diffie-Hellman (ECDH `secp256r1`)** — Dynamic ephemeral key agreement generated live over TCP.
-- 🛡️ **Host Public Key Pinning (MitM Protection)** — Clients verify the server's public key against the session token during the handshake, preventing active Man-in-the-Middle network attacks.
+- 🛡️ **Host Public Key Pinning (MitM Protection)** — Clients verify the server's public key against the session token during the handshake, protecting against active Man-in-the-Middle network attacks.
 - 🔒 **Zero-Secret Session Tokens** — Tokens contain no passwords, keys, or secrets (only connection routing info and Host EC public key). Token leaks cannot compromise chat privacy.
 - 🔑 **Encrypted Authentication Handshake** — Passwords and auth requests are encrypted via AES-256-GCM prior to transmission. No plaintext passwords over the wire.
 - ⏱️ **Constant-Time Password Comparison** — Password hashes are compared using `MessageDigest.isEqual` to prevent side-channel timing attacks.
