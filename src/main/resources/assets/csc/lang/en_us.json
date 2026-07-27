@@ -1,7 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Commands Overview",
   "csc.help.host": "/csc host [password] [max_players] [hours] — Host a server & generate Session Token",
-  "csc.help.join": "/csc join <token|ip> [password] — Join via Session Token or IP",
+  "csc.help.join": "/csc join <token|ip|bookmark> [password] — Join via Session Token, IP or Bookmark",
+  "csc.help.msg": "#/msg <player> <text> (or /csc msg) — Send a direct private whisper to a player",
+  "csc.help.list": "/csc list — Show active players in your session",
+  "csc.help.bookmark": "/csc bookmark [add|join|list|remove] — Manage saved favorite servers",
+  "csc.help.sound": "/csc sound [bell|ping|orb|click|anvil|off] — Change or toggle notification sound",
   "csc.help.kick": "/csc kick <player> [reason] — Kick a player from your host session",
   "csc.help.ban": "/csc ban <player> [reason] — Ban a player from your host session",
   "csc.help.unban": "/csc unban <ip> — Unban an IP address",
@@ -9,7 +13,6 @@
   "csc.help.stop": "/csc stop — Stop hosting your server",
   "csc.help.disconnect": "/csc disconnect — Disconnect from current server",
   "csc.help.token": "/csc token — Show your active Session Token",
-  "csc.help.sound": "/csc sound [on|off] — Toggle notification sounds and mention pings",
   "csc.help.status": "/csc status — Show hosting, ECDH & log status",
   "csc.help.logs": "/csc logs — Show log file location",
   "csc.help.ip": "/ip [get] — Show your public IP",
@@ -35,7 +38,7 @@
   "csc.chat.unbanned_success": "✔ IP '%s' was unbanned.",
   "csc.chat.unbanned_fail": "✘ IP '%s' was not in the banlist.",
 
-  "csc.chat.sound_on": "✔ Notification sounds and mention pings ENABLED 🔔",
+  "csc.chat.sound_set": "✔ Notification sound set to: %s 🔔",
   "csc.chat.sound_off": "✘ Notification sounds DISABLED 🔕",
 
   "csc.chat.connecting": "Connecting via ECDH with Key Pinning...",

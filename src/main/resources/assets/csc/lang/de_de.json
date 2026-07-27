@@ -1,7 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Befehlsübersicht",
   "csc.help.host": "/csc host [passwort] [max_spieler] [stunden] — Starte Server & generiere Token",
-  "csc.help.join": "/csc join <token|ip> [passwort] — Beitreten per Token oder IP",
+  "csc.help.join": "/csc join <token|ip|bookmark> [passwort] — Beitreten per Token, IP oder Lesezeichen",
+  "csc.help.msg": "#/msg <spieler> <text> (oder /csc msg) — Flüstern / Nachricht an einen bestimmten Spieler",
+  "csc.help.list": "/csc list — Zeige alle aktiven Spieler in deiner Session",
+  "csc.help.bookmark": "/csc bookmark [add|join|list|remove] — Verwalte gespeicherte Lieblings-Server",
+  "csc.help.sound": "/csc sound [bell|ping|orb|click|anvil|off] — Benachrichtigungs-Sound ändern oder ausschalten",
   "csc.help.kick": "/csc kick <spieler> [grund] — Kicke einen Spieler aus deiner Session",
   "csc.help.ban": "/csc ban <spieler> [grund] — Banne einen Spieler aus deiner Session",
   "csc.help.unban": "/csc unban <ip> — Entbanne eine IP-Adresse",
@@ -9,7 +13,6 @@
   "csc.help.stop": "/csc stop — Stoppe deinen eigenen Server",
   "csc.help.disconnect": "/csc disconnect — Trenne die aktuelle Verbindung",
   "csc.help.token": "/csc token — Zeige dein aktives Session Token",
-  "csc.help.sound": "/csc sound [on|off] — Benachrichtigungs-Töne und Erwähnungs-Pings umschalten",
   "csc.help.status": "/csc status — Zeige Host-, ECDH- & Log-Status",
   "csc.help.logs": "/csc logs — Zeige Pfad der Log-Dateien",
   "csc.help.ip": "/ip [get] — Zeige deine öffentliche IP-Adresse",
@@ -35,7 +38,7 @@
   "csc.chat.unbanned_success": "✔ IP-Adresse '%s' wurde entbannt.",
   "csc.chat.unbanned_fail": "✘ IP-Adresse '%s' war nicht auf der Bannliste.",
 
-  "csc.chat.sound_on": "✔ Benachrichtigungs-Töne & Erwähnungs-Pings AKTIVIERT 🔔",
+  "csc.chat.sound_set": "✔ Benachrichtigungs-Sound eingestellt auf: %s 🔔",
   "csc.chat.sound_off": "✘ Benachrichtigungs-Töne DEAKTIVIERT 🔕",
 
   "csc.chat.connecting": "Verbinde via ECDH mit Key Pinning...",

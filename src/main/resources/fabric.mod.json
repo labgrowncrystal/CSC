@@ -3,9 +3,13 @@
 	"id": "csc",
 	"version": "${version}",
 	"name": "Clientside Chat (CSC)",
-	"description": "A client-side private chat mod with Reproducible Build, MIT License, Host Public Key Pinning, ECDH Key Agreement, AES-256-GCM E2EE, Universal IP Masking, and Rate Limiting.",
-	"authors": ["WantingHades901"],
-	"contact": { "sources": "https://github.com/WantingHades901/csc" },
+	"description": "Server-Admin Private P2P Messaging for Minecraft — Zero server-side plugins or external web servers required. Features ECDH Key Exchange, AES-256-GCM E2EE, Host Key Pinning, Audio Feedback, Whispering & Bookmarks.",
+	"authors": ["WantingHades901", "LabGrownCrystal"],
+	"contact": {
+		"homepage": "https://github.com/labgrowncrystal/CSC",
+		"sources": "https://github.com/labgrowncrystal/CSC",
+		"issues": "https://github.com/labgrowncrystal/CSC/issues"
+	},
 	"license": "MIT",
 	"icon": "assets/csc/icon.png",
 	"environment": "client",
@@ -18,5 +22,13 @@
 		"fabric-api": "*",
 		"minecraft": "~26.2",
 		"java": ">=25"
+	},
+	"custom": {
+		"modmenu": {
+			"badges": ["client"],
+			"links": {
+				"modmenu.github": "https://github.com/labgrowncrystal/CSC"
+			}
+		}
 	}
 }

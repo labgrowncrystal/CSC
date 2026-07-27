@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ClickEvent;
@@ -20,29 +21,31 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.Map;
 
 /**
- * CSC — Clientside Chat v1.8.0 Host Moderation Suite Edition
+ * CSC — Clientside Chat v1.9.0 Ultimate Feature Suite Edition
  *
  * Features:
+ *   - Direct Private Whispering (#/msg <player> <text> or /csc msg)
+ *   - Session Player List (/csc list)
+ *   - Selectable Notification Sounds (/csc sound bell|ping|orb|click|anvil|off)
+ *   - Favorite Server Bookmarks (/csc bookmark add|join|list|remove)
  *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
- *   - Notification Sounds & Mention Pings (@PlayerName)
- *   - /csc sound [on|off] toggle command
- *   - Modern UI Chat Badges & Interactive [COPY TOKEN] button
- *   - Ultra-compact Binary Tokens (~147 chars)
- *   - Unified /csc join & /csc connect command aliases
+ *   - Modern Chat Badges & Interactive [COPY TOKEN] button
+ *   - Ultra-compact Binary Tokens (~147 chars) & Unified Commands
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
     private static RelayConnection connection;
     private static String myName = "";
     private static String currentToken = "";
-    private static boolean soundEnabled = true;
+    private static String selectedSound = "bell"; // bell, ping, orb, click, anvil, off
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.8.0 (Host Moderation Suite)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.0 (Ultimate Feature Suite)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -84,6 +87,137 @@ public class CSCClient implements ClientModInitializer {
                                 })
                             )
                         )
+                    )
+                )
+
+                .then(ClientCommands.literal("msg")
+                    .then(ClientCommands.argument("target", StringArgumentType.string())
+                        .then(ClientCommands.argument("text", StringArgumentType.greedyString())
+                            .executes(ctx -> {
+                                String target = StringArgumentType.getString(ctx, "target");
+                                String text = StringArgumentType.getString(ctx, "text");
+                                sendDirectWhisper(ctx.getSource(), target, text);
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("list")
+                    .executes(ctx -> {
+                        showPlayerList(ctx.getSource());
+                        return 1;
+                    })
+                )
+
+                .then(ClientCommands.literal("bookmark")
+                    .executes(ctx -> {
+                        showBookmarks(ctx.getSource());
+                        return 1;
+                    })
+                    .then(ClientCommands.literal("list")
+                        .executes(ctx -> {
+                            showBookmarks(ctx.getSource());
+                            return 1;
+                        })
+                    )
+                    .then(ClientCommands.literal("add")
+                        .then(ClientCommands.argument("name", StringArgumentType.string())
+                            .then(ClientCommands.argument("target", StringArgumentType.string())
+                                .executes(ctx -> {
+                                    String name = StringArgumentType.getString(ctx, "name");
+                                    String target = StringArgumentType.getString(ctx, "target");
+                                    if (BookmarkManager.addBookmark(name, target, "")) {
+                                        ctx.getSource().sendFeedback(Component.literal("§8[§d§lCSC§8] §aBookmark '" + name + "' added successfully!"));
+                                    } else {
+                                        ctx.getSource().sendError(Component.literal("§8[§d§lCSC§8] §cFailed to add bookmark."));
+                                    }
+                                    return 1;
+                                })
+                                .then(ClientCommands.argument("password", StringArgumentType.string())
+                                    .executes(ctx -> {
+                                        String name = StringArgumentType.getString(ctx, "name");
+                                        String target = StringArgumentType.getString(ctx, "target");
+                                        String pw = StringArgumentType.getString(ctx, "password");
+                                        if (BookmarkManager.addBookmark(name, target, pw)) {
+                                            ctx.getSource().sendFeedback(Component.literal("§8[§d§lCSC§8] §aBookmark '" + name + "' added successfully!"));
+                                        } else {
+                                            ctx.getSource().sendError(Component.literal("§8[§d§lCSC§8] §cFailed to add bookmark."));
+                                        }
+                                        return 1;
+                                    })
+                                )
+                            )
+                        )
+                    )
+                    .then(ClientCommands.literal("remove")
+                        .then(ClientCommands.argument("name", StringArgumentType.string())
+                            .executes(ctx -> {
+                                String name = StringArgumentType.getString(ctx, "name");
+                                if (BookmarkManager.removeBookmark(name)) {
+                                    ctx.getSource().sendFeedback(Component.literal("§8[§d§lCSC§8] §aBookmark '" + name + "' removed."));
+                                } else {
+                                    ctx.getSource().sendError(Component.literal("§8[§d§lCSC§8] §cBookmark '" + name + "' not found."));
+                                }
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("join")
+                    .then(ClientCommands.argument("target", StringArgumentType.string())
+                        .executes(ctx -> {
+                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("password", StringArgumentType.string())
+                            .executes(ctx -> {
+                                handleJoinOrConnect(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "target"),
+                                    StringArgumentType.getString(ctx, "password"));
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("connect")
+                    .then(ClientCommands.argument("target", StringArgumentType.string())
+                        .executes(ctx -> {
+                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("password", StringArgumentType.string())
+                            .executes(ctx -> {
+                                handleJoinOrConnect(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "target"),
+                                    StringArgumentType.getString(ctx, "password"));
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                .then(ClientCommands.literal("sound")
+                    .executes(ctx -> {
+                        selectedSound = selectedSound.equals("off") ? "bell" : "off";
+                        ctx.getSource().sendFeedback(Component.translatable(selectedSound.equals("off") ? "csc.chat.sound_off" : "csc.chat.sound_set", selectedSound));
+                        if (!selectedSound.equals("off")) playNotificationSound(false);
+                        return 1;
+                    })
+                    .then(ClientCommands.argument("mode", StringArgumentType.string())
+                        .executes(ctx -> {
+                            String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+                            if (mode.equals("off") || mode.equals("bell") || mode.equals("ping") || mode.equals("orb") || mode.equals("click") || mode.equals("anvil")) {
+                                selectedSound = mode;
+                                ctx.getSource().sendFeedback(Component.translatable(mode.equals("off") ? "csc.chat.sound_off" : "csc.chat.sound_set", mode));
+                                if (!selectedSound.equals("off")) playNotificationSound(false);
+                            } else {
+                                ctx.getSource().sendError(Component.literal("§8[§d§lCSC§8] §cInvalid sound mode! Choose: bell, ping, orb, click, anvil, off"));
+                            }
+                            return 1;
+                        })
                     )
                 )
 
@@ -140,64 +274,6 @@ public class CSCClient implements ClientModInitializer {
                     })
                 )
 
-                .then(ClientCommands.literal("join")
-                    .then(ClientCommands.argument("target", StringArgumentType.string())
-                        .executes(ctx -> {
-                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
-                            return 1;
-                        })
-                        .then(ClientCommands.argument("password", StringArgumentType.string())
-                            .executes(ctx -> {
-                                handleJoinOrConnect(ctx.getSource(),
-                                    StringArgumentType.getString(ctx, "target"),
-                                    StringArgumentType.getString(ctx, "password"));
-                                return 1;
-                            })
-                        )
-                    )
-                )
-
-                .then(ClientCommands.literal("connect")
-                    .then(ClientCommands.argument("target", StringArgumentType.string())
-                        .executes(ctx -> {
-                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
-                            return 1;
-                        })
-                        .then(ClientCommands.argument("password", StringArgumentType.string())
-                            .executes(ctx -> {
-                                handleJoinOrConnect(ctx.getSource(),
-                                    StringArgumentType.getString(ctx, "target"),
-                                    StringArgumentType.getString(ctx, "password"));
-                                return 1;
-                            })
-                        )
-                    )
-                )
-
-                .then(ClientCommands.literal("sound")
-                    .executes(ctx -> {
-                        soundEnabled = !soundEnabled;
-                        ctx.getSource().sendFeedback(Component.translatable(soundEnabled ? "csc.chat.sound_on" : "csc.chat.sound_off"));
-                        if (soundEnabled) playNotificationSound(false);
-                        return 1;
-                    })
-                    .then(ClientCommands.literal("on")
-                        .executes(ctx -> {
-                            soundEnabled = true;
-                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.sound_on"));
-                            playNotificationSound(false);
-                            return 1;
-                        })
-                    )
-                    .then(ClientCommands.literal("off")
-                        .executes(ctx -> {
-                            soundEnabled = false;
-                            ctx.getSource().sendFeedback(Component.translatable("csc.chat.sound_off"));
-                            return 1;
-                        })
-                    )
-                )
-
                 .then(ClientCommands.literal("stop")
                     .executes(ctx -> { stopHost(ctx.getSource()); return 1; })
                 )
@@ -221,13 +297,14 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§8[§d§lCSC v1.8.0§8] §bStatus Overview\n";
+                        String statusText = "§8[§d§lCSC v1.9.0 Ultimate§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
-                        statusText += "§7  Sounds: " + (soundEnabled ? "§a✔ Active 🔔" : "§c✘ Muted 🔕") + "\n";
+                        statusText += "§7  Sound Mode: " + (selectedSound.equals("off") ? "§c✘ Off 🔕" : "§a✔ " + selectedSound + " 🔔") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
                         statusText += "§7  Privacy Logs: §a✔ Anonymized & Masked\n";
                         statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
+                        statusText += "§7  Bookmarks: §f" + BookmarkManager.getAllBookmarks().size() + " saved\n";
                         if (hosting) {
                             statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + ")\n";
                             if (!currentToken.isEmpty()) {
@@ -269,6 +346,20 @@ public class CSCClient implements ClientModInitializer {
                 String chatText = message.substring(1).trim();
                 if (chatText.isEmpty()) return false;
 
+                // Support #/msg <target> <text> direct whisper shortcut!
+                if (chatText.startsWith("/msg ")) {
+                    String whisperData = chatText.substring(5).trim();
+                    int firstSpace = whisperData.indexOf(' ');
+                    if (firstSpace > 0) {
+                        String target = whisperData.substring(0, firstSpace).trim();
+                        String text = whisperData.substring(firstSpace + 1).trim();
+                        if (!target.isEmpty() && !text.isEmpty()) {
+                            sendDirectWhisper(null, target, text);
+                            return false;
+                        }
+                    }
+                }
+
                 if (connection != null && connection.isConnected()) {
                     connection.sendMessage(chatText);
                     showChat("§8[§d§lCSC§8] §dYou: §f" + chatText);
@@ -293,11 +384,14 @@ public class CSCClient implements ClientModInitializer {
         source.sendFeedback(Component.literal("§8[§d§lCSC§8] §b").append(Component.translatable("csc.help.title")).append("\n")
             .append(Component.translatable("csc.help.host")).append("\n")
             .append(Component.translatable("csc.help.join")).append("\n")
+            .append(Component.translatable("csc.help.msg")).append("\n")
+            .append(Component.translatable("csc.help.list")).append("\n")
+            .append(Component.translatable("csc.help.bookmark")).append("\n")
+            .append(Component.translatable("csc.help.sound")).append("\n")
             .append(Component.translatable("csc.help.kick")).append("\n")
             .append(Component.translatable("csc.help.ban")).append("\n")
             .append(Component.translatable("csc.help.unban")).append("\n")
             .append(Component.translatable("csc.help.banlist")).append("\n")
-            .append(Component.translatable("csc.help.sound")).append("\n")
             .append(Component.translatable("csc.help.stop")).append("\n")
             .append(Component.translatable("csc.help.disconnect")).append("\n")
             .append(Component.translatable("csc.help.token")).append("\n")
@@ -346,6 +440,10 @@ public class CSCClient implements ClientModInitializer {
                             }
                             case "disconnected" -> showComponent(Component.translatable("csc.chat.left", sender));
                             case "msg" -> handleIncomingChatMessage(sender, text);
+                            case "whisper" -> {
+                                showChat("§8[§d§lCSC Whisper from " + sender + "§8] §f" + text);
+                                playNotificationSound(true);
+                            }
                             case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                         }
                     });
@@ -368,6 +466,72 @@ public class CSCClient implements ClientModInitializer {
                 });
             }
         }, "CSC-Host-Init").start();
+    }
+
+    private static void sendDirectWhisper(FabricClientCommandSource source, String target, String text) {
+        if (connection != null && connection.isConnected()) {
+            connection.sendWhisper(target, text);
+            showChat("§8[§d§lCSC Whisper -> " + target + "§8] §f" + text);
+            return;
+        }
+
+        if (relayServer != null && relayServer.isRunning()) {
+            boolean sent = relayServer.sendWhisper(myName, target, text);
+            if (sent) {
+                showChat("§8[§d§lCSC Whisper -> " + target + "§8] §f" + text);
+            } else {
+                if (source != null) {
+                    source.sendError(Component.literal("§8[§d§lCSC§8] §cPlayer '" + target + "' not found in session for whisper."));
+                } else {
+                    showChat("§8[§d§lCSC§8] §cPlayer '" + target + "' not found in session for whisper.");
+                }
+            }
+            return;
+        }
+
+        if (source != null) {
+            source.sendError(Component.translatable("csc.chat.not_connected"));
+        } else {
+            showComponent(Component.translatable("csc.chat.not_connected"));
+        }
+    }
+
+    private static void showPlayerList(FabricClientCommandSource source) {
+        boolean hosting = relayServer != null && relayServer.isRunning();
+        boolean connected = connection != null && connection.isConnected();
+
+        if (!hosting && !connected) {
+            source.sendError(Component.translatable("csc.chat.not_connected"));
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder("§8[§d§lCSC Session Players§8]\n");
+        if (hosting) {
+            List<String> clientNames = relayServer.getClientNames();
+            sb.append("§7  • §a").append(myName.isEmpty() ? "Host" : myName).append(" §8(Host / Owner)\n");
+            for (String name : clientNames) {
+                sb.append("§7  • §f").append(name).append(" §8(Connected Player)\n");
+            }
+            sb.append("§7Total: §f").append(clientNames.size() + 1).append("/").append(relayServer.getMaxClients()).append(" players");
+        } else {
+            sb.append("§7  • §a").append(myName).append(" §8(You / Connected Client)\n");
+            sb.append("§7Connected to private host via ECDH E2EE.");
+        }
+        source.sendFeedback(Component.literal(sb.toString()));
+    }
+
+    private static void showBookmarks(FabricClientCommandSource source) {
+        Map<String, BookmarkManager.Bookmark> bms = BookmarkManager.getAllBookmarks();
+        if (bms.isEmpty()) {
+            source.sendFeedback(Component.literal("§8[§d§lCSC§8] §aNo bookmarks saved yet. Use /csc bookmark add <name> <token|ip>"));
+        } else {
+            StringBuilder sb = new StringBuilder("§8[§d§lCSC Saved Bookmarks§8]\n");
+            for (BookmarkManager.Bookmark bm : bms.values()) {
+                String preview = bm.target.length() > 25 ? bm.target.substring(0, 22) + "..." : bm.target;
+                sb.append("§7  • §e").append(bm.name).append(" §8-> §f").append(preview).append("\n");
+            }
+            source.sendFeedback(Component.literal(sb.toString()));
+        }
     }
 
     private static void kickHostPlayer(FabricClientCommandSource source, String player, String reason) {
@@ -455,15 +619,23 @@ public class CSCClient implements ClientModInitializer {
     }
 
     private static void playNotificationSound(boolean isMention) {
-        if (!soundEnabled) return;
+        if (selectedSound.equals("off")) return;
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null && mc.getSoundManager() != null) {
+                SoundEvent se = SoundEvents.NOTE_BLOCK_BELL.value();
                 if (isMention) {
-                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_CHIME.value(), 1.6F));
+                    se = SoundEvents.NOTE_BLOCK_CHIME.value();
                 } else {
-                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BELL.value(), 1.2F));
+                    switch (selectedSound) {
+                        case "ping" -> se = SoundEvents.NOTE_BLOCK_CHIME.value();
+                        case "orb" -> se = SoundEvents.EXPERIENCE_ORB_PICKUP;
+                        case "click" -> se = SoundEvents.UI_BUTTON_CLICK.value();
+                        case "anvil" -> se = SoundEvents.ANVIL_USE;
+                        default -> se = SoundEvents.NOTE_BLOCK_BELL.value();
+                    }
                 }
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(se, isMention ? 1.6F : 1.2F));
             }
         } catch (Exception ignored) {}
     }
@@ -488,6 +660,14 @@ public class CSCClient implements ClientModInitializer {
 
     private static void handleJoinOrConnect(FabricClientCommandSource source, String target, String password) {
         target = target.trim();
+        BookmarkManager.Bookmark bm = BookmarkManager.getBookmark(target);
+        if (bm != null) {
+            target = bm.target;
+            if (password.isEmpty() && !bm.password.isEmpty()) {
+                password = bm.password;
+            }
+        }
+
         if (target.startsWith("CSC-") || target.length() > 50) {
             joinToken(source, target, password);
         } else {
@@ -533,6 +713,10 @@ public class CSCClient implements ClientModInitializer {
                         playNotificationSound(false);
                     }
                     case "msg" -> handleIncomingChatMessage(sender, text);
+                    case "whisper" -> {
+                        showChat("§8[§d§lCSC Whisper from " + sender + "§8] §f" + text);
+                        playNotificationSound(true);
+                    }
                     case "system" -> showChat("§8[§d§lCSC§8] §e" + text);
                     case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));

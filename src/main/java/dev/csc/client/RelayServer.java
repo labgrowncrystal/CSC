@@ -10,11 +10,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.8.1 Code Hardening Edition
+ * Hardened P2P TCP Relay Server v1.9.0 Ultimate Feature Suite Edition
  * Features:
- *   - Anonymized IP Matching for /csc unban
- *   - Null-Safe JSON Field Extraction
- *   - Clean EOF Stream Disconnect Handling
+ *   - Direct Private Whispering (whisper to specific players)
+ *   - Client Name Listing (/csc list)
  *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
  *   - Password-First Authentication (Prevents name-enumeration leaks)
  *   - Name Uniqueness Check (Prevents name spoofing / impersonation within a session)
@@ -133,6 +132,25 @@ public class RelayServer {
     public boolean isRunning() { return running; }
     public int getClientCount() { return clients.size(); }
     public int getMaxClients() { return maxClients; }
+
+    public List<String> getClientNames() {
+        List<String> names = new ArrayList<>();
+        for (ClientHandler c : clients) {
+            if (!c.name.isEmpty()) names.add(c.name);
+        }
+        return names;
+    }
+
+    public boolean sendWhisper(String senderName, String targetName, String text) {
+        for (ClientHandler c : clients) {
+            if (c.name.equalsIgnoreCase(targetName)) {
+                String outJson = "{\"type\":\"whisper\",\"sender\":\"" + escapeJson(senderName) + "\",\"target\":\"" + escapeJson(targetName) + "\",\"text\":\"" + escapeJson(text) + "\"}";
+                c.sendEncrypted(outJson);
+                return true;
+            }
+        }
+        return false;
+    }
 
     public boolean kickPlayer(String playerName, String reason) {
         for (ClientHandler c : clients) {
@@ -332,6 +350,15 @@ public class RelayServer {
                             String outJson = "{\"type\":\"msg\",\"sender\":\"" + escapeJson(name) + "\",\"text\":\"" + escapeJson(text) + "\"}";
                             broadcast(name, outJson);
                             callback.onEvent("msg", name, text);
+                        }
+                    } else if ("whisper".equals(msgType)) {
+                        String target = getField(decLine, "target");
+                        String text = getField(decLine, "text");
+                        if (target != null && text != null) {
+                            boolean sent = sendWhisper(name, target, text);
+                            if (!sent) {
+                                sendEncrypted("{\"type\":\"system\",\"text\":\"Player '" + escapeJson(target) + "' not found in session.\"}");
+                            }
                         }
                     } else if ("ping".equals(msgType)) {
                         sendEncrypted("{\"type\":\"pong\"}");

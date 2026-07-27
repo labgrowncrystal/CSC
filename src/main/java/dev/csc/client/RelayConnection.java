@@ -141,6 +141,12 @@ public class RelayConnection {
                             if (sender != null && text != null) {
                                 callback.onEvent("msg", sender, text);
                             }
+                        } else if ("whisper".equals(msgType)) {
+                            String sender = RelayServer.getField(decLine, "sender");
+                            String text = RelayServer.getField(decLine, "text");
+                            if (sender != null && text != null) {
+                                callback.onEvent("whisper", sender, text);
+                            }
                         } else if ("system".equals(msgType)) {
                             String text = RelayServer.getField(decLine, "text");
                             if (text != null) {
@@ -180,6 +186,18 @@ public class RelayConnection {
             } catch (Exception e) {
                 LoggerHelper.error("ClientConnection", "Failed to send message: " + e.getMessage());
                 callback.onEvent("error", "", "Send failed: " + e.getMessage());
+            }
+        }
+    }
+
+    public void sendWhisper(String target, String text) {
+        if (connected && writer != null) {
+            try {
+                String rawMsgJson = "{\"type\":\"whisper\",\"target\":\"" + RelayServer.escapeJson(target) + "\",\"text\":\"" + RelayServer.escapeJson(text) + "\"}";
+                sendEncrypted(rawMsgJson);
+            } catch (Exception e) {
+                LoggerHelper.error("ClientConnection", "Failed to send whisper: " + e.getMessage());
+                callback.onEvent("error", "", "Whisper failed: " + e.getMessage());
             }
         }
     }

@@ -1,7 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Список команд",
   "csc.help.host": "/csc host [пароль] [макс_игроков] [часы] — Создать сервер и сгенерировать Токен",
-  "csc.help.join": "/csc join <токен|ip> [пароль] — Подключиться по Токену или IP",
+  "csc.help.join": "/csc join <токен|ip|закладка> [пароль] — Подключиться по Токену, IP или Закладке",
+  "csc.help.msg": "#/msg <игрок> <текст> — Личное сообщение игроку",
+  "csc.help.list": "/csc list — Показать активных игроков в сессии",
+  "csc.help.bookmark": "/csc bookmark [add|join|list|remove] — Управление закладками серверов",
+  "csc.help.sound": "/csc sound [bell|ping|orb|click|anvil|off] — Изменить звук уведомления",
   "csc.help.kick": "/csc kick <игрок> [причина] — Исключить игрока из сессии",
   "csc.help.ban": "/csc ban <игрок> [причина] — Заблокировать игрока",
   "csc.help.unban": "/csc unban <ip> — Разблокировать IP",
@@ -35,7 +39,7 @@
   "csc.chat.unbanned_success": "✔ IP '%s' разблокирован.",
   "csc.chat.unbanned_fail": "✘ IP '%s' не найден в списке блокировок.",
 
-  "csc.chat.sound_on": "✔ Звуки уведомлений ВКЛЮЧЕНЫ 🔔",
+  "csc.chat.sound_set": "✔ Звук уведомлений установлен на: %s 🔔",
   "csc.chat.sound_off": "✘ Звуки уведомлений ВЫКЛЮЧЕНЫ 🔕",
 
   "csc.chat.connecting": "Подключение через ECDH с Key Pinning...",

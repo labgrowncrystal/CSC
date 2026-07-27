@@ -1,7 +1,11 @@
 {
   "csc.help.title": "Clientside Chat — Comandos",
   "csc.help.host": "/csc host [contraseña] [max_jugadores] [horas] — Crear servidor y generar Token",
-  "csc.help.join": "/csc join <token|ip> [contraseña] — Unirse mediante Token o IP",
+  "csc.help.join": "/csc join <token|ip|marcador> [contraseña] — Unirse mediante Token, IP o Marcador",
+  "csc.help.msg": "#/msg <jugador> <texto> — Susurrar a un jugador",
+  "csc.help.list": "/csc list — Mostrar jugadores activos en la sesión",
+  "csc.help.bookmark": "/csc bookmark [add|join|list|remove] — Gestionar servidores favoritos",
+  "csc.help.sound": "/csc sound [bell|ping|orb|click|anvil|off] — Cambiar sonido de notificación",
   "csc.help.kick": "/csc kick <jugador> [razón] — Expulsar a un jugador",
   "csc.help.ban": "/csc ban <jugador> [razón] — Banear a un jugador",
   "csc.help.unban": "/csc unban <ip> — Desbanear una IP",
@@ -9,7 +13,6 @@
   "csc.help.stop": "/csc stop — Detener servidor",
   "csc.help.disconnect": "/csc disconnect — Desconectarse",
   "csc.help.token": "/csc token — Mostrar Token activo",
-  "csc.help.sound": "/csc sound [on|off] — Activar/desactivar sonidos de notificación",
   "csc.help.status": "/csc status — Estado del servidor y E2EE",
   "csc.help.logs": "/csc logs — Mostrar ruta de archivos de registro",
   "csc.help.ip": "/ip [get] — Mostrar tu IP pública",
@@ -35,7 +38,7 @@
   "csc.chat.unbanned_success": "✔ La IP '%s' fue desbaneada.",
   "csc.chat.unbanned_fail": "✘ La IP '%s' no estaba en la lista de baneos.",
 
-  "csc.chat.sound_on": "✔ Sonidos de notificación ACTIVADOS 🔔",
+  "csc.chat.sound_set": "✔ Sonido de notificación configurado en: %s 🔔",
   "csc.chat.sound_off": "✘ Sonidos de notificación DESACTIVADOS 🔕",
 
   "csc.chat.connecting": "Conectando mediante ECDH con Key Pinning...",

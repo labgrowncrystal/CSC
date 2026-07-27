@@ -29,6 +29,10 @@ public class LoggerHelper {
         }
     }
 
+    public static File getCscDir() {
+        return new File(System.getProperty("user.home"), "AppData/Roaming/.minecraft/csc");
+    }
+
     private static void rotateLogIfNeeded() {
         try {
             if (Files.exists(LOG_FILE) && Files.size(LOG_FILE) > MAX_LOG_SIZE) {
@@ -58,40 +62,35 @@ public class LoggerHelper {
         }
         int lastDot = ip.lastIndexOf('.');
         if (lastDot != -1) {
-            return ip.substring(0, lastDot) + ".***";
+            return ip.substring(0, lastDot + 1) + "***";
         }
-        int lastColon = ip.lastIndexOf(':');
-        if (lastColon != -1) {
-            return ip.substring(0, lastColon) + ":****";
-        }
-        return "***.***.***.***";
+        return ip;
     }
 
     public static String maskToken(String token) {
-        if (token == null || token.isEmpty()) return token;
-        if (token.startsWith("CSC-")) {
-            return token.substring(0, Math.min(12, token.length())) + "...[REDACTED_PRIVACY]";
-        }
-        return "[REDACTED_PRIVACY]";
+        if (token == null || token.length() < 10) return token;
+        return token.substring(0, 8) + "..." + token.substring(token.length() - 4);
     }
 
-    public static String anonymizeSensitiveData(String msg) {
-        if (msg == null) return "";
-        // Mask tokens in log strings
-        if (msg.contains("CSC-")) {
-            int idx = msg.indexOf("CSC-");
-            int endIdx = msg.indexOf(" ", idx);
-            if (endIdx == -1) endIdx = msg.length();
-            String rawToken = msg.substring(idx, endIdx);
-            msg = msg.replace(rawToken, maskToken(rawToken));
-        }
-        // Universal Regex Mask for any IPv4 address (e.g. 192.168.1.100 -> 192.168.1.***)
-        msg = msg.replaceAll("\\b((?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b", "$1***");
-        return msg;
+    public static String anonymizeSensitiveData(String input) {
+        if (input == null) return null;
+        String sanitized = input.replaceAll("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "$1***");
+        return sanitized;
     }
 
-    public static void info(String component, String message) { log("INFO", component, message); }
-    public static void warn(String component, String message) { log("WARN", component, message); }
-    public static void error(String component, String message) { log("ERROR", component, message); }
-    public static Path getLogFile() { return LOG_FILE; }
+    public static void info(String component, String message) {
+        log("INFO", component, message);
+    }
+
+    public static void warn(String component, String message) {
+        log("WARN", component, message);
+    }
+
+    public static void error(String component, String message) {
+        log("ERROR", component, message);
+    }
+
+    public static Path getLogFile() {
+        return LOG_FILE;
+    }
 }
