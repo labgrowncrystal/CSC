@@ -148,13 +148,18 @@ public class RelayConnection {
                             }
                         }
                     }
+                    if (connected) {
+                        LoggerHelper.info("ClientConnection", "Server closed connection stream");
+                        callback.onEvent("disconnected", "", "Server closed connection");
+                    }
                 } catch (IOException e) {
                     if (connected) {
                         LoggerHelper.warn("ClientConnection", "Connection lost: " + e.getMessage());
                         callback.onEvent("disconnected", "", "Connection lost");
                     }
+                } finally {
+                    connected = false;
                 }
-                connected = false;
             }, "CSC-Relay-Read");
             readThread.setDaemon(true);
             readThread.start();

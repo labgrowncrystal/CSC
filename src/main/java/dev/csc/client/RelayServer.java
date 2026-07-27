@@ -10,8 +10,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.8.0 Host Moderation Edition
+ * Hardened P2P TCP Relay Server v1.8.1 Code Hardening Edition
  * Features:
+ *   - Anonymized IP Matching for /csc unban
+ *   - Null-Safe JSON Field Extraction
+ *   - Clean EOF Stream Disconnect Handling
  *   - Host Moderation: /csc kick, /csc ban, /csc unban, /csc banlist
  *   - Password-First Authentication (Prevents name-enumeration leaks)
  *   - Name Uniqueness Check (Prevents name spoofing / impersonation within a session)
@@ -161,8 +164,18 @@ public class RelayServer {
         return false;
     }
 
-    public boolean unbanIp(String ip) {
-        return bannedIps.remove(ip) != null;
+    public boolean unbanIp(String target) {
+        if (target == null || target.isEmpty()) return false;
+        if (bannedIps.remove(target) != null) {
+            return true;
+        }
+        for (String rawIp : bannedIps.keySet()) {
+            if (LoggerHelper.anonymizeIp(rawIp).equalsIgnoreCase(target) || rawIp.equalsIgnoreCase(target)) {
+                bannedIps.remove(rawIp);
+                return true;
+            }
+        }
+        return false;
     }
 
     public Map<String, Long> getBannedIps() {
@@ -380,6 +393,7 @@ public class RelayServer {
     }
 
     static String sha256(String input) {
+        if (input == null) return "";
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
@@ -392,6 +406,7 @@ public class RelayServer {
     }
 
     static String getField(String json, String field) {
+        if (json == null || field == null) return null;
         String pattern = "\"" + field + "\":\"";
         int start = json.indexOf(pattern);
         if (start == -1) return null;
@@ -402,6 +417,7 @@ public class RelayServer {
     }
 
     static String escapeJson(String s) {
+        if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
