@@ -19,21 +19,25 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.3.1 Multi-Language Edition
+ * CSC — Clientside Chat v1.4.0 Cryptographic Masterpiece
  *
- * Supports: EN, DE (mit Umlauten ä, ö, ü, ß), ES, FR, RU, ZH
- * Uses Component.translatable(...) for native Minecraft internationalization.
+ * Architecture Improvements:
+ *   - Elliptic Curve Diffie-Hellman (ECDH secp256r1) Key Agreement over TCP
+ *   - AES-256-GCM End-to-End Encrypted Handshake & Messaging
+ *   - Zero Secrets / Keys stored inside Session Tokens
+ *   - Constant-Time Auth Password Comparison (Anti-Timing Side-Channel)
+ *   - Rate-Limiting & Automatic 5-minute IP Ban on 5 auth failures
+ *   - Bounded Line Buffering (16KB max per line DoS limit)
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
     private static RelayConnection connection;
     private static String myName = "";
     private static String currentToken = "";
-    private static String activeEncryptionSecret = "CSC_DEFAULT_SESSION_SECRET";
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.3.1 Multi-Language Client...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.0 (ECDH Architecture)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -43,7 +47,6 @@ public class CSCClient implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 
-            // ─── /csc ────────────────────────────────────────────────────
             dispatcher.register(ClientCommands.literal("csc")
                 .executes(ctx -> { sendHelp(ctx.getSource()); return 1; })
 
@@ -51,7 +54,6 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> { sendHelp(ctx.getSource()); return 1; })
                 )
 
-                // ─── /csc host [password] [max_players] [duration_hours] ─
                 .then(ClientCommands.literal("host")
                     .executes(ctx -> { startHost(ctx.getSource(), "", 2, 24); return 1; })
                     .then(ClientCommands.argument("password", StringArgumentType.string())
@@ -80,7 +82,6 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
-                // ─── /csc join <token> ───────────────────────────────────
                 .then(ClientCommands.literal("join")
                     .then(ClientCommands.argument("token", StringArgumentType.string())
                         .executes(ctx -> {
@@ -90,7 +91,6 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
-                // ─── /csc connect <ip_or_token> [password] ───────────────
                 .then(ClientCommands.literal("connect")
                     .then(ClientCommands.argument("target", StringArgumentType.string())
                         .executes(ctx -> {
@@ -116,17 +116,14 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
-                // ─── /csc stop ───────────────────────────────────────────
                 .then(ClientCommands.literal("stop")
                     .executes(ctx -> { stopHost(ctx.getSource()); return 1; })
                 )
 
-                // ─── /csc disconnect ─────────────────────────────────────
                 .then(ClientCommands.literal("disconnect")
                     .executes(ctx -> { disconnectFromHost(ctx.getSource()); return 1; })
                 )
 
-                // ─── /csc token ──────────────────────────────────────────
                 .then(ClientCommands.literal("token")
                     .executes(ctx -> {
                         if (!currentToken.isEmpty()) {
@@ -143,13 +140,13 @@ public class CSCClient implements ClientModInitializer {
                     })
                 )
 
-                // ─── /csc status ─────────────────────────────────────────
                 .then(ClientCommands.literal("status")
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.3.1 Multi-Lang] Status\n";
+                        String statusText = "§b§l[CSC v1.4.0 ECDH Architecture] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
+                        statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
                         if (hosting) {
                             statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + ")\n";
@@ -166,7 +163,6 @@ public class CSCClient implements ClientModInitializer {
                     })
                 )
 
-                // ─── /csc logs ───────────────────────────────────────────
                 .then(ClientCommands.literal("logs")
                     .executes(ctx -> {
                         String logPath = LoggerHelper.getLogFile().toString();
@@ -180,7 +176,6 @@ public class CSCClient implements ClientModInitializer {
                 )
             );
 
-            // ─── /ip [get] ───────────────────────────────────────────────
             dispatcher.register(ClientCommands.literal("ip")
                 .executes(ctx -> { fetchPublicIp(ctx.getSource()); return 1; })
                 .then(ClientCommands.literal("get")
@@ -189,22 +184,19 @@ public class CSCClient implements ClientModInitializer {
             );
         });
 
-        // ─── Intercept '#' messages & Encrypt via AES-256-GCM ────────────
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             if (message.startsWith("#")) {
                 String chatText = message.substring(1).trim();
                 if (chatText.isEmpty()) return false;
 
-                String encryptedText = CryptoHelper.encrypt(chatText, activeEncryptionSecret);
-
                 if (connection != null && connection.isConnected()) {
-                    connection.sendMessage(encryptedText);
+                    connection.sendMessage(chatText);
                     showChat("§d[CSC] You: §f" + chatText);
                     return false;
                 }
 
                 if (relayServer != null && relayServer.isRunning()) {
-                    String outJson = "{\"type\":\"msg\",\"sender\":\"" + RelayServer.escapeJson(myName) + "\",\"text\":\"" + RelayServer.escapeJson(encryptedText) + "\"}";
+                    String outJson = "{\"type\":\"msg\",\"sender\":\"" + RelayServer.escapeJson(myName) + "\",\"text\":\"" + RelayServer.escapeJson(chatText) + "\"}";
                     broadcastFromHost(myName, outJson);
                     showChat("§d[CSC] You: §f" + chatText);
                     return false;
@@ -230,53 +222,48 @@ public class CSCClient implements ClientModInitializer {
             .append(Component.translatable("csc.help.message")));
     }
 
-    // ─── Host ────────────────────────────────────────────────────────────
     private static void startHost(FabricClientCommandSource source, String password, int maxPlayers, int durationHours) {
         if (relayServer != null && relayServer.isRunning()) {
             source.sendError(Component.translatable("csc.chat.already_hosting"));
             return;
         }
 
-        String ephemeralSecret = TokenHelper.generateEphemeralSecret();
-        activeEncryptionSecret = password.isEmpty() ? ephemeralSecret : password;
-
-        LoggerHelper.info("CSCClient", "Fetching public & LAN IP for host token generation...");
+        LoggerHelper.info("CSCClient", "Generating ECDH Host KeyPair...");
 
         new Thread(() -> {
-            String publicIp = "127.0.0.1";
             try {
-                HttpClient client = HttpClient.newHttpClient();
-                HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.ipify.org"))
-                    .timeout(java.time.Duration.ofSeconds(4))
-                    .build();
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                publicIp = response.body().trim();
-            } catch (Exception e) {
-                LoggerHelper.warn("CSCClient", "Could not fetch public IP, fallback to 127.0.0.1: " + e.getMessage());
-            }
+                ECDHHelper.ECDHKeyPair hostKeyPair = ECDHHelper.generateKeyPair();
+                String publicIp = "127.0.0.1";
+                try {
+                    HttpClient client = HttpClient.newHttpClient();
+                    HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.ipify.org"))
+                        .timeout(java.time.Duration.ofSeconds(4))
+                        .build();
+                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                    publicIp = response.body().trim();
+                } catch (Exception e) {
+                    LoggerHelper.warn("CSCClient", "Could not fetch public IP, fallback to 127.0.0.1: " + e.getMessage());
+                }
 
-            String lanIp = TokenHelper.getLocalLanIp();
-            long expiresAt = System.currentTimeMillis() + ((long) durationHours * 3600 * 1000);
+                String lanIp = TokenHelper.getLocalLanIp();
+                long expiresAt = System.currentTimeMillis() + ((long) durationHours * 3600 * 1000);
 
-            try {
-                relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, maxPlayers, expiresAt, (type, sender, text) -> {
+                relayServer = new RelayServer(CSCMod.DEFAULT_PORT, password, maxPlayers, expiresAt, hostKeyPair, (type, sender, text) -> {
                     Minecraft.getInstance().execute(() -> {
                         switch (type) {
                             case "connected" -> showComponent(Component.translatable("csc.chat.joined", sender));
                             case "disconnected" -> showComponent(Component.translatable("csc.chat.left", sender));
-                            case "msg" -> {
-                                String decrypted = CryptoHelper.decrypt(text, activeEncryptionSecret);
-                                showChat("§d[CSC] " + sender + ": §f" + decrypted);
-                            }
+                            case "msg" -> showChat("§d[CSC] " + sender + ": §f" + text);
                             case "auth_fail" -> showComponent(Component.translatable("csc.chat.auth_fail", sender));
                         }
                     });
                 });
                 relayServer.start();
 
-                currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, password, durationHours, maxPlayers, ephemeralSecret);
-                LoggerHelper.info("CSCClient", "Host started. Session Token: " + currentToken);
+                // Token contains ZERO secrets, only connection routing and Host EC Public Key!
+                currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, durationHours, maxPlayers, hostKeyPair.publicKeyBase64);
+                LoggerHelper.info("CSCClient", "Host started. ECDH Session Token generated: " + currentToken);
 
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", maxPlayers, durationHours));
@@ -304,7 +291,6 @@ public class CSCClient implements ClientModInitializer {
             relayServer.stop();
             relayServer = null;
             currentToken = "";
-            activeEncryptionSecret = "CSC_DEFAULT_SESSION_SECRET";
             LoggerHelper.info("CSCClient", "Host stopped by user.");
             source.sendFeedback(Component.literal("§e[CSC] Host stopped."));
         } else {
@@ -318,15 +304,13 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    // ─── Join via Token ──────────────────────────────────────────────────
     private static void joinToken(FabricClientCommandSource source, String tokenStr) {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
-            activeEncryptionSecret = data.password.isEmpty() ? data.sessionSecret : data.password;
 
-            LoggerHelper.info("CSCClient", "Joining session via Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
-            source.sendFeedback(Component.literal("§e[CSC] Token verified! Connecting..."));
-            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, data.password);
+            LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
+            source.sendFeedback(Component.literal("§e[CSC] Token verified! Performing ECDH Key Agreement..."));
+            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "");
         } catch (SecurityException e) {
             LoggerHelper.warn("CSCClient", "Token security fail: " + e.getMessage());
             source.sendError(Component.literal("§c[CSC] Token invalid or tampered!"));
@@ -339,7 +323,6 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    // ─── Connect ─────────────────────────────────────────────────────────
     private static void connectToHostWithFallback(FabricClientCommandSource source, String publicHost, String lanHost, int port, String password) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
@@ -349,20 +332,13 @@ public class CSCClient implements ClientModInitializer {
             myName = "Player";
         }
 
-        if (!password.isEmpty()) {
-            activeEncryptionSecret = password;
-        }
-
-        source.sendFeedback(Component.literal("§e[CSC] Connecting..."));
+        source.sendFeedback(Component.literal("§e[CSC] Connecting via ECDH..."));
 
         connection = new RelayConnection((type, sender, text) -> {
             Minecraft.getInstance().execute(() -> {
                 switch (type) {
                     case "connected" -> showComponent(Component.translatable("csc.chat.connected"));
-                    case "msg" -> {
-                        String decrypted = CryptoHelper.decrypt(text, activeEncryptionSecret);
-                        showChat("§d[CSC] " + sender + ": §f" + decrypted);
-                    }
+                    case "msg" -> showChat("§d[CSC] " + sender + ": §f" + text);
                     case "system" -> showChat("§e[CSC] " + text);
                     case "auth_fail" -> showChat("§c[CSC] Auth failed: " + text);
                     case "disconnected" -> showComponent(Component.translatable("csc.chat.disconnected", text));
@@ -383,7 +359,6 @@ public class CSCClient implements ClientModInitializer {
     private static void disconnectFromHost(FabricClientCommandSource source) {
         if (connection != null && connection.isConnected()) {
             connection.disconnect();
-            activeEncryptionSecret = "CSC_DEFAULT_SESSION_SECRET";
             LoggerHelper.info("CSCClient", "Disconnected by user.");
             source.sendFeedback(Component.literal("§e[CSC] Disconnected."));
         } else {

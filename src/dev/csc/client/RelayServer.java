@@ -7,13 +7,19 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import javax.crypto.SecretKey;
 
+/**
+ * Hardened P2P TCP Relay Server v1.4.0
+ * Features: ECDH Key Agreement, Encrypted Handshake, Constant-Time Auth, Message Rate-Limiting & IP Ban.
+ */
 public class RelayServer {
     private ServerSocket serverSocket;
     private final int port;
     private final String passwordHash;
     private final int maxClients;
     private final long expiresAt;
+    private final ECDHHelper.ECDHKeyPair hostKeyPair;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
     private final Map<String, Long> bannedIps = new ConcurrentHashMap<>();
@@ -21,18 +27,19 @@ public class RelayServer {
     private Thread acceptThread;
     private final MessageCallback callback;
 
-    public RelayServer(int port, String password, int maxClients, long expiresAt, MessageCallback callback) {
+    public RelayServer(int port, String password, int maxClients, long expiresAt, ECDHHelper.ECDHKeyPair hostKeyPair, MessageCallback callback) {
         this.port = port;
         this.callback = callback;
         this.passwordHash = password.isEmpty() ? "" : sha256(password);
         this.maxClients = maxClients;
         this.expiresAt = expiresAt;
+        this.hostKeyPair = hostKeyPair;
     }
 
     public void start() throws IOException {
         serverSocket = new ServerSocket(port);
         running = true;
-        LoggerHelper.info("RelayServer", "Server started on port " + port + " (Max clients: " + maxClients + ")");
+        LoggerHelper.info("RelayServer", "Server started on port " + port + " (ECDH Enabled, Max clients: " + maxClients + ")");
 
         acceptThread = new Thread(() -> {
             while (running) {
@@ -96,14 +103,14 @@ public class RelayServer {
     private void broadcast(String senderName, String json) {
         for (ClientHandler c : clients) {
             if (!c.name.equals(senderName)) {
-                c.send(json);
+                c.sendEncrypted(json);
             }
         }
     }
 
     public void broadcastFromExternal(String senderName, String json) {
         for (ClientHandler c : clients) {
-            c.send(json);
+            c.sendEncrypted(json);
         }
     }
 
@@ -122,6 +129,11 @@ public class RelayServer {
         private BufferedWriter writer;
         private String name = "";
         private boolean authenticated = false;
+        private SecretKey ecdhKey;
+
+        // Rate limiting: max 10 messages per second
+        private int msgCount = 0;
+        private long lastMsgResetTime = System.currentTimeMillis();
 
         ClientHandler(Socket socket, String remoteIp) {
             this.socket = socket;
@@ -135,22 +147,42 @@ public class RelayServer {
                 writer = new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
-                String authLine = readBoundedLine(reader);
-                if (authLine == null) return;
+                // 1. First exchange ECDH Public Keys
+                String clientKeyLine = readBoundedLine(reader);
+                if (clientKeyLine == null) return;
 
+                String clientPubKey = getField(clientKeyLine, "ecdh_pub");
+                if (clientPubKey == null) {
+                    LoggerHelper.warn("RelayServer", "Invalid ECDH handshake from " + remoteIp);
+                    return;
+                }
+
+                // Send Host Public Key
+                sendRaw("{\"type\":\"ecdh_init\",\"ecdh_pub\":\"" + hostKeyPair.publicKeyBase64 + "\"}");
+
+                // Compute shared ECDH secret
+                ecdhKey = ECDHHelper.deriveSharedSecret(hostKeyPair.privateKey, clientPubKey);
+
+                // 2. Read encrypted Auth Line
+                String encAuthLine = readBoundedLine(reader);
+                if (encAuthLine == null) return;
+
+                String authLine = CryptoHelper.decryptWithKey(encAuthLine, ecdhKey);
                 String type = getField(authLine, "type");
                 String pw = getField(authLine, "password");
                 String n = getField(authLine, "name");
 
                 if (!"auth".equals(type) || n == null || n.isEmpty()) {
-                    send("{\"type\":\"auth_fail\",\"reason\":\"Invalid auth request\"}");
+                    sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Invalid auth request\"}");
                     LoggerHelper.warn("RelayServer", "Auth fail from " + remoteIp + ": Invalid auth payload");
                     return;
                 }
 
+                // Password check using Constant-Time comparison to prevent timing attacks
                 if (!passwordHash.isEmpty()) {
-                    if (pw == null || !passwordHash.equals(sha256(pw))) {
-                        send("{\"type\":\"auth_fail\",\"reason\":\"Wrong password\"}");
+                    String providedPwHash = pw != null ? sha256(pw) : "";
+                    if (!CryptoHelper.constantTimeEquals(passwordHash, providedPwHash)) {
+                        sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Wrong password\"}");
                         int fails = failedAttempts.getOrDefault(remoteIp, 0) + 1;
                         failedAttempts.put(remoteIp, fails);
                         LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + remoteIp + " (Attempt " + fails + "/5)");
@@ -170,27 +202,41 @@ public class RelayServer {
                 this.name = n;
                 this.authenticated = true;
                 clients.add(this);
-                send("{\"type\":\"auth_ok\"}");
-                LoggerHelper.info("RelayServer", "Player '" + name + "' authenticated successfully from " + remoteIp);
+                sendEncrypted("{\"type\":\"auth_ok\"}");
+                LoggerHelper.info("RelayServer", "Player '" + name + "' authenticated via ECDH from " + remoteIp);
                 callback.onEvent("connected", name, "");
 
                 broadcast(name, "{\"type\":\"system\",\"text\":\"" + escapeJson(name) + " joined the private chat\"}");
 
                 String line;
                 while ((line = readBoundedLine(reader)) != null && running) {
-                    String msgType = getField(line, "type");
+                    // Check message rate limit (max 10 msgs / sec)
+                    long now = System.currentTimeMillis();
+                    if (now - lastMsgResetTime > 1000) {
+                        msgCount = 0;
+                        lastMsgResetTime = now;
+                    }
+                    msgCount++;
+                    if (msgCount > 10) {
+                        LoggerHelper.warn("RelayServer", "Message rate limit exceeded by " + name + " (" + remoteIp + ")");
+                        continue; // Drop spam messages
+                    }
+
+                    // Decrypt incoming payload
+                    String decLine = CryptoHelper.decryptWithKey(line, ecdhKey);
+                    String msgType = getField(decLine, "type");
                     if ("msg".equals(msgType)) {
-                        String text = getField(line, "text");
+                        String text = getField(decLine, "text");
                         if (text != null) {
                             String outJson = "{\"type\":\"msg\",\"sender\":\"" + escapeJson(name) + "\",\"text\":\"" + escapeJson(text) + "\"}";
                             broadcast(name, outJson);
                             callback.onEvent("msg", name, text);
                         }
                     } else if ("ping".equals(msgType)) {
-                        send("{\"type\":\"pong\"}");
+                        sendEncrypted("{\"type\":\"pong\"}");
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
             } finally {
                 clients.remove(this);
                 if (authenticated) {
@@ -219,7 +265,7 @@ public class RelayServer {
             return sb.length() > 0 || ch != -1 ? sb.toString() : null;
         }
 
-        void send(String json) {
+        void sendRaw(String json) {
             try {
                 if (writer != null) {
                     synchronized (writer) {
@@ -229,6 +275,15 @@ public class RelayServer {
                     }
                 }
             } catch (IOException ignored) {}
+        }
+
+        void sendEncrypted(String json) {
+            if (ecdhKey != null) {
+                String enc = CryptoHelper.encryptWithKey(json, ecdhKey);
+                sendRaw(enc);
+            } else {
+                sendRaw(json);
+            }
         }
 
         void disconnect() {

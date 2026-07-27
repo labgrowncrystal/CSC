@@ -4,12 +4,17 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import javax.crypto.SecretKey;
 
+/**
+ * Hardened TCP client with ECDH Key Exchange and Encrypted Handshake.
+ */
 public class RelayConnection {
     private Socket socket;
     private BufferedWriter writer;
     private volatile boolean connected = false;
     private Thread readThread;
+    private SecretKey ecdhKey;
     private final MessageCallback callback;
 
     public RelayConnection(MessageCallback callback) {
@@ -26,7 +31,7 @@ public class RelayConnection {
             }
 
             if (lanHost != null && !lanHost.isEmpty() && !lanHost.equals(publicHost)) {
-                LoggerHelper.info("ClientConnection", "Public IP connection failed. Falling back to LAN IP (" + lanHost + ":" + port + ")...");
+                LoggerHelper.info("ClientConnection", "Public IP failed. Falling back to LAN IP (" + lanHost + ":" + port + ")...");
                 if (trySocketConnect(lanHost, port, name, password)) {
                     return true;
                 }
@@ -44,10 +49,6 @@ public class RelayConnection {
         });
     }
 
-    public CompletableFuture<Boolean> connect(String host, int port, String name, String password) {
-        return connectWithFallback(host, "", port, name, password);
-    }
-
     private boolean trySocketConnect(String host, int port, String name, String password) {
         try {
             socket = new Socket();
@@ -57,18 +58,40 @@ public class RelayConnection {
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
-            String escapedName = RelayServer.escapeJson(name);
-            String escapedPw = RelayServer.escapeJson(password);
-            writer.write("{\"type\":\"auth\",\"name\":\"" + escapedName + "\",\"password\":\"" + escapedPw + "\"}");
-            writer.newLine();
-            writer.flush();
+            // 1. Generate Client EC KeyPair & perform ECDH Handshake
+            ECDHHelper.ECDHKeyPair clientKeyPair = ECDHHelper.generateKeyPair();
+            sendRaw("{\"type\":\"ecdh_init\",\"ecdh_pub\":\"" + clientKeyPair.publicKeyBase64 + "\"}");
 
-            String response = reader.readLine();
-            if (response == null) {
+            String serverKeyLine = reader.readLine();
+            if (serverKeyLine == null) {
                 disconnect();
                 return false;
             }
 
+            String serverPubKey = RelayServer.getField(serverKeyLine, "ecdh_pub");
+            if (serverPubKey == null) {
+                LoggerHelper.warn("ClientConnection", "ECDH handshake failed from " + host);
+                disconnect();
+                return false;
+            }
+
+            ecdhKey = ECDHHelper.deriveSharedSecret(clientKeyPair.privateKey, serverPubKey);
+            LoggerHelper.info("ClientConnection", "ECDH Key Agreement established successfully!");
+
+            // 2. Send AES-256-GCM Encrypted Auth Payload
+            String escapedName = RelayServer.escapeJson(name);
+            String escapedPw = RelayServer.escapeJson(password);
+            String rawAuthJson = "{\"type\":\"auth\",\"name\":\"" + escapedName + "\",\"password\":\"" + escapedPw + "\"}";
+            sendEncrypted(rawAuthJson);
+
+            // 3. Read Encrypted Auth Response
+            String encResponse = reader.readLine();
+            if (encResponse == null) {
+                disconnect();
+                return false;
+            }
+
+            String response = CryptoHelper.decryptWithKey(encResponse, ecdhKey);
             String type = RelayServer.getField(response, "type");
             if ("auth_fail".equals(type)) {
                 String reason = RelayServer.getField(response, "reason");
@@ -84,22 +107,23 @@ public class RelayConnection {
             }
 
             connected = true;
-            LoggerHelper.info("ClientConnection", "Connected & authenticated successfully via " + host + ":" + port + "!");
+            LoggerHelper.info("ClientConnection", "Authenticated via ECDH on " + host + ":" + port + "!");
             callback.onEvent("connected", name, "");
 
             readThread = new Thread(() -> {
                 try {
                     String line;
                     while ((line = reader.readLine()) != null && connected) {
-                        String msgType = RelayServer.getField(line, "type");
+                        String decLine = CryptoHelper.decryptWithKey(line, ecdhKey);
+                        String msgType = RelayServer.getField(decLine, "type");
                         if ("msg".equals(msgType)) {
-                            String sender = RelayServer.getField(line, "sender");
-                            String text = RelayServer.getField(line, "text");
+                            String sender = RelayServer.getField(decLine, "sender");
+                            String text = RelayServer.getField(decLine, "text");
                             if (sender != null && text != null) {
                                 callback.onEvent("msg", sender, text);
                             }
                         } else if ("system".equals(msgType)) {
-                            String text = RelayServer.getField(line, "text");
+                            String text = RelayServer.getField(decLine, "text");
                             if (text != null) {
                                 callback.onEvent("system", "", text);
                             }
@@ -117,8 +141,8 @@ public class RelayConnection {
             readThread.start();
 
             return true;
-        } catch (IOException e) {
-            LoggerHelper.warn("ClientConnection", "Socket connect failed to " + host + ":" + port + " (" + e.getMessage() + ")");
+        } catch (Exception e) {
+            LoggerHelper.warn("ClientConnection", "Connect failed to " + host + ":" + port + " (" + e.getMessage() + ")");
             disconnect();
             return false;
         }
@@ -127,15 +151,33 @@ public class RelayConnection {
     public void sendMessage(String text) {
         if (connected && writer != null) {
             try {
-                synchronized (writer) {
-                    writer.write("{\"type\":\"msg\",\"text\":\"" + RelayServer.escapeJson(text) + "\"}");
-                    writer.newLine();
-                    writer.flush();
-                }
-            } catch (IOException e) {
+                String rawMsgJson = "{\"type\":\"msg\",\"text\":\"" + RelayServer.escapeJson(text) + "\"}";
+                sendEncrypted(rawMsgJson);
+            } catch (Exception e) {
                 LoggerHelper.error("ClientConnection", "Failed to send message: " + e.getMessage());
                 callback.onEvent("error", "", "Send failed: " + e.getMessage());
             }
+        }
+    }
+
+    private void sendRaw(String json) {
+        try {
+            if (writer != null) {
+                synchronized (writer) {
+                    writer.write(json);
+                    writer.newLine();
+                    writer.flush();
+                }
+            }
+        } catch (IOException ignored) {}
+    }
+
+    private void sendEncrypted(String json) {
+        if (ecdhKey != null) {
+            String enc = CryptoHelper.encryptWithKey(json, ecdhKey);
+            sendRaw(enc);
+        } else {
+            sendRaw(json);
         }
     }
 
