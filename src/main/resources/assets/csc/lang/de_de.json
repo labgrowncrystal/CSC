@@ -27,6 +27,7 @@
   "csc.chat.already_hosting": "Du hostest bereits! Nutze zuerst /csc stop.",
   "csc.chat.not_hosting": "Du hostest aktuell nicht.",
   "csc.chat.host_started": "✔ Server gestartet! (ECDH + AES-256-GCM E2EE, Max. %d Spieler, %dh gültig)",
+  "csc.chat.no_password_warning": "Kein Passwort gesetzt. Die Sicherheit deiner Session stützt sich rein darauf, das Session Token geheim zu halten.",
   "csc.chat.token_label": "Session Token: %s",
   "csc.chat.token_sub": "(Klicke den Button unten zum Kopieren. Key Pinning & E2EE!)",
   "csc.chat.token_copy_btn": "[ TOKEN KOPIEREN ]",

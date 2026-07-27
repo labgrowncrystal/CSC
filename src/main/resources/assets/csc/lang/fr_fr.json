@@ -27,6 +27,7 @@
   "csc.chat.already_hosting": "Vous hébergez déjà ! Utilisez d'abord /csc stop.",
   "csc.chat.not_hosting": "Vous n'hébergez pas actuellement.",
   "csc.chat.host_started": "✔ Serveur démarré (AES-256-GCM E2EE, Max. %d joueurs, %dh valide)",
+  "csc.chat.no_password_warning": "Aucun mot de passe défini. La sécurité de votre session repose entièrement sur la confidentialité du jeton.",
   "csc.chat.token_label": "Jeton de session : %s",
   "csc.chat.token_sub": "(Cliquez sur le bouton ci-dessous pour copier.)",
   "csc.chat.token_copy_btn": "[ COPIER LE JETON ]",

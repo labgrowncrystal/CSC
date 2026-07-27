@@ -27,6 +27,7 @@
   "csc.chat.already_hosting": "你已经在主机运行中！请先使用 /csc stop。",
   "csc.chat.not_hosting": "当前未在运行主机。",
   "csc.chat.host_started": "✔ 主机已启动！(AES-256-GCM E2EE，最多 %d 人，有效 %d 小时)",
+  "csc.chat.no_password_warning": "未设置密码。你的会话安全性完全取决于保持令牌的私密性。",
   "csc.chat.token_label": "会话令牌：%s",
   "csc.chat.token_sub": "(点击下方按钮复制。端到端加密！)",
   "csc.chat.token_copy_btn": "[ 复制令牌 ]",

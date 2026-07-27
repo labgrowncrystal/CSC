@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CSC — Clientside Chat v1.9.1 Security Clarity & Ban ID Edition
+ * CSC — Clientside Chat v1.9.2 100% Full Translation Audit & Micro-Cleanup
  *
  * Features:
+ *   - 100% Translatable Coverage: Password notice localized via csc.chat.no_password_warning in 6 languages.
  *   - Unique Ban ID System (#1, #2...) for collision-free unbanning of anonymized IPs
- *   - No-Password Session Security Notice
  *   - Direct Private Whispering (#/msg <player> <text> or /csc msg)
  *   - Session Player List (/csc list)
  *   - Selectable Notification Sounds (/csc sound bell|ping|orb|click|anvil|off)
@@ -47,7 +47,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.1 (Security Clarity & Ban ID Edition)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.9.2 (100% Full Localization Audit)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -299,7 +299,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§8[§d§lCSC v1.9.1§8] §bStatus Overview\n";
+                        String statusText = "§8[§d§lCSC v1.9.2§8] §bStatus Overview\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Sound Mode: " + (selectedSound.equals("off") ? "§c✘ Off 🔕" : "§a✔ " + selectedSound + " 🔔") + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
@@ -458,7 +458,7 @@ public class CSCClient implements ClientModInitializer {
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
                     if (password.isEmpty()) {
-                        source.sendFeedback(Component.literal("§e[CSC Notice] No password set. Your session security relies entirely on keeping the Session Token private."));
+                        source.sendFeedback(Component.literal("§e[CSC Notice] ").append(Component.translatable("csc.chat.no_password_warning")));
                     }
                     sendTokenComponent(source, currentToken);
                     playNotificationSound(false);

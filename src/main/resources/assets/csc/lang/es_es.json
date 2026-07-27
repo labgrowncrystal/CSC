@@ -27,6 +27,7 @@
   "csc.chat.already_hosting": "¡Ya estás alojando! Usa /csc stop primero.",
   "csc.chat.not_hosting": "No estás alojando actualmente.",
   "csc.chat.host_started": "✔ Servidor iniciado (AES-256-GCM E2EE, Máx. %d jugadores, %dh válido)",
+  "csc.chat.no_password_warning": "Sin contraseña. La seguridad de la sesión depende totalmente de mantener el Token en privado.",
   "csc.chat.token_label": "Token de sesión: %s",
   "csc.chat.token_sub": "(Haz clic en el botón de abajo para copiar.)",
   "csc.chat.token_copy_btn": "[ COPIAR TOKEN ]",

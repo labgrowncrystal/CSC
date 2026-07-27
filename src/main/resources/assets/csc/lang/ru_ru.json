@@ -28,6 +28,7 @@
   "csc.chat.already_hosting": "Вы уже создали сервер! Сначала используйте /csc stop.",
   "csc.chat.not_hosting": "Вы не создавали сервер.",
   "csc.chat.host_started": "✔ Сервер запущен (AES-256-GCM E2EE, Макс. %d игроков, %dh)",
+  "csc.chat.no_password_warning": "Пароль не задан. Безопасность вашей сессии полностью зависит от конфиденциальности Токена.",
   "csc.chat.token_label": "Токен сессии: %s",
   "csc.chat.token_sub": "(Нажмите кнопку ниже для копирования.)",
   "csc.chat.token_copy_btn": "[ КОПИРОВАТЬ ТОКЕН ]",
