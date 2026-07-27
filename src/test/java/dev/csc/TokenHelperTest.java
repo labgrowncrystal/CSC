@@ -13,7 +13,10 @@ public class TokenHelperTest {
 
         String token = TokenHelper.generateToken("93.184.216.34", "192.168.1.100", 49156, 24, 5, hostKeyPair.publicKeyBase64);
 
+        System.out.println("ACTUAL TOKEN LENGTH = " + token.length() + " -> " + token);
+
         assertTrue(token.startsWith("CSC-"));
+        assertTrue(token.length() < 200, "Binary token MUST be under 200 chars to easily fit in Minecraft 256 char limit! Actual length: " + token.length());
 
         TokenHelper.SessionTokenData parsed = TokenHelper.parseToken(token);
 

@@ -19,10 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.5.0 Reproducible & Hardened Edition
+ * CSC — Clientside Chat v1.6.0 Ultra-Compact Token & Command Alias Edition
  *
- * Fully open-source, reproducible Gradle build, MIT licensed, with defensive input clamping,
- * Host Public Key Pinning, ECDH Key Agreement, AES-256-GCM E2EE, and Universal IP Masking.
+ * Ultra-compact Session Tokens (~130 chars) easily fit within Minecraft's 256 char chat limit.
+ * /csc join and /csc connect are unified aliases accepting both Tokens and IP addresses.
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -32,7 +32,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.5.0 (Reproducible Build & Input Clamping)...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.6.0 (Ultra-Compact Tokens & Unified Commands)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -77,34 +77,36 @@ public class CSCClient implements ClientModInitializer {
                     )
                 )
 
+                // Unified /csc join command (handles both Tokens & IP addresses)
                 .then(ClientCommands.literal("join")
-                    .then(ClientCommands.argument("token", StringArgumentType.string())
-                        .executes(ctx -> {
-                            joinToken(ctx.getSource(), StringArgumentType.getString(ctx, "token"));
-                            return 1;
-                        })
-                    )
-                )
-
-                .then(ClientCommands.literal("connect")
                     .then(ClientCommands.argument("target", StringArgumentType.string())
                         .executes(ctx -> {
-                            String target = StringArgumentType.getString(ctx, "target");
-                            if (target.startsWith("CSC-")) {
-                                joinToken(ctx.getSource(), target);
-                            } else {
-                                connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, "", "");
-                            }
+                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
                             return 1;
                         })
                         .then(ClientCommands.argument("password", StringArgumentType.string())
                             .executes(ctx -> {
-                                String target = StringArgumentType.getString(ctx, "target");
-                                if (target.startsWith("CSC-")) {
-                                    joinToken(ctx.getSource(), target);
-                                } else {
-                                    connectToHostWithFallback(ctx.getSource(), target, "", CSCMod.DEFAULT_PORT, StringArgumentType.getString(ctx, "password"), "");
-                                }
+                                handleJoinOrConnect(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "target"),
+                                    StringArgumentType.getString(ctx, "password"));
+                                return 1;
+                            })
+                        )
+                    )
+                )
+
+                // Unified /csc connect command alias (handles both Tokens & IP addresses)
+                .then(ClientCommands.literal("connect")
+                    .then(ClientCommands.argument("target", StringArgumentType.string())
+                        .executes(ctx -> {
+                            handleJoinOrConnect(ctx.getSource(), StringArgumentType.getString(ctx, "target"), "");
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("password", StringArgumentType.string())
+                            .executes(ctx -> {
+                                handleJoinOrConnect(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "target"),
+                                    StringArgumentType.getString(ctx, "password"));
                                 return 1;
                             })
                         )
@@ -139,7 +141,7 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.5.0 Reproducible Build] Status\n";
+                        String statusText = "§b§l[CSC v1.6.0 Ultra-Compact] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
@@ -225,7 +227,6 @@ public class CSCClient implements ClientModInitializer {
             return;
         }
 
-        // Defensive Input Clamping
         final int finalMaxPlayers = Math.max(2, Math.min(50, maxPlayers));
         final int finalDurationHours = Math.max(1, Math.min(168, durationHours));
 
@@ -263,7 +264,7 @@ public class CSCClient implements ClientModInitializer {
                 relayServer.start();
 
                 currentToken = TokenHelper.generateToken(publicIp, lanIp, CSCMod.DEFAULT_PORT, finalDurationHours, finalMaxPlayers, hostKeyPair.publicKeyBase64);
-                LoggerHelper.info("CSCClient", "Host started. ECDH Session Token generated: " + currentToken);
+                LoggerHelper.info("CSCClient", "Host started. Compact ECDH Session Token generated: " + currentToken);
 
                 Minecraft.getInstance().execute(() -> {
                     source.sendFeedback(Component.translatable("csc.chat.host_started", finalMaxPlayers, finalDurationHours));
@@ -304,13 +305,26 @@ public class CSCClient implements ClientModInitializer {
         }
     }
 
-    private static void joinToken(FabricClientCommandSource source, String tokenStr) {
+    /**
+     * Unified handler for both /csc join and /csc connect.
+     * Automatically differentiates between a Session Token (CSC-...) and a raw IP address / Hostname.
+     */
+    private static void handleJoinOrConnect(FabricClientCommandSource source, String target, String password) {
+        target = target.trim();
+        if (target.startsWith("CSC-") || target.length() > 50) {
+            joinToken(source, target, password);
+        } else {
+            connectToHostWithFallback(source, target, "", CSCMod.DEFAULT_PORT, password, "");
+        }
+    }
+
+    private static void joinToken(FabricClientCommandSource source, String tokenStr, String overridePassword) {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
 
             LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + LoggerHelper.anonymizeIp(data.publicIp) + ", LAN IP=" + LoggerHelper.anonymizeIp(data.lanIp));
             source.sendFeedback(Component.translatable("csc.chat.token_verified"));
-            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "", data.hostPubKey);
+            connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, overridePassword, data.hostPubKey);
         } catch (SecurityException e) {
             LoggerHelper.warn("CSCClient", "Token security fail: " + e.getMessage());
             source.sendError(Component.translatable("csc.chat.token_invalid"));
