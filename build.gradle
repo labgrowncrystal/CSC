@@ -2,30 +2,39 @@ plugins {
 	id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
 	id 'maven-publish'
 }
+
 version = project.mod_version
 group = project.maven_group
-repositories { mavenCentral() }
+
+repositories {
+	mavenCentral()
+	maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	compileOnly fileTree(dir: 'libs', include: ['*.jar'])
-	compileOnly files("C:/Users/jost-/.gradle/caches/fabric-loom/26.2/minecraft-merged.jar")
 }
+
 processResources {
 	def version = project.version
 	inputs.property "version", version
 	filesMatching("fabric.mod.json") { expand "version": version }
 }
+
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 25
 	it.options.encoding = 'UTF-8'
 }
+
 java {
 	withSourcesJar()
 	toolchain { languageVersion = JavaLanguageVersion.of(25) }
 	sourceCompatibility = JavaVersion.VERSION_25
 	targetCompatibility = JavaVersion.VERSION_25
 }
+
 jar {
 	def projectName = project.name
 	inputs.property "projectName", projectName
