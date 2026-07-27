@@ -10,8 +10,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
 
 /**
- * Hardened P2P TCP Relay Server v1.4.3 Privacy Audit Edition
- * Features: IP Anonymization in logs, ECDH Key Agreement, Encrypted Handshake, Constant-Time Auth, Message Rate-Limiting & IP Ban.
+ * Hardened P2P TCP Relay Server v1.5.2 Session Integrity & Anti-Impersonation Edition
+ * Features:
+ *   - Name Uniqueness Check (Prevents name spoofing / impersonation within a session)
+ *   - Active Session Expiration Kick (Disconnects existing clients once expiresAt is reached)
+ *   - Spam Rate Limit Escalation (Kicks clients after 5 consecutive spam violations)
+ *   - ECDH Key Agreement, Encrypted Handshake, Constant-Time Auth & IP Anonymization.
  */
 public class RelayServer {
     private ServerSocket serverSocket;
@@ -25,6 +29,7 @@ public class RelayServer {
     private final Map<String, Long> bannedIps = new ConcurrentHashMap<>();
     private volatile boolean running = false;
     private Thread acceptThread;
+    private Thread expiryCheckThread;
     private final MessageCallback callback;
 
     public RelayServer(int port, String password, int maxClients, long expiresAt, ECDHHelper.ECDHKeyPair hostKeyPair, MessageCallback callback) {
@@ -81,6 +86,30 @@ public class RelayServer {
         }, "CSC-Relay-Accept");
         acceptThread.setDaemon(true);
         acceptThread.start();
+
+        // Active Expiration Check Thread: kicks connected clients when session expires
+        if (expiresAt > 0) {
+            expiryCheckThread = new Thread(() -> {
+                while (running) {
+                    try {
+                        Thread.sleep(5000);
+                        if (System.currentTimeMillis() > expiresAt) {
+                            LoggerHelper.info("RelayServer", "Session duration expired! Kicking active connections...");
+                            for (ClientHandler c : clients) {
+                                c.sendEncrypted("{\"type\":\"system\",\"text\":\"Session expired\"}");
+                                c.disconnect();
+                            }
+                            stop();
+                            break;
+                        }
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }, "CSC-Relay-ExpiryCheck");
+            expiryCheckThread.setDaemon(true);
+            expiryCheckThread.start();
+        }
     }
 
     public void stop() {
@@ -100,6 +129,15 @@ public class RelayServer {
     public boolean isRunning() { return running; }
     public int getClientCount() { return clients.size(); }
     public int getMaxClients() { return maxClients; }
+
+    private boolean isNameTaken(String name) {
+        for (ClientHandler c : clients) {
+            if (c.name.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private void broadcast(String senderName, String json) {
         for (ClientHandler c : clients) {
@@ -134,6 +172,7 @@ public class RelayServer {
         private SecretKey ecdhKey;
 
         private int msgCount = 0;
+        private int spamViolations = 0;
         private long lastMsgResetTime = System.currentTimeMillis();
 
         ClientHandler(Socket socket, String remoteIp, String anonIp) {
@@ -175,6 +214,14 @@ public class RelayServer {
                     return;
                 }
 
+                // 1. Name Uniqueness Check (Prevents name spoofing)
+                if (isNameTaken(n)) {
+                    sendEncrypted("{\"type\":\"auth_fail\",\"reason\":\"Name already taken\"}");
+                    LoggerHelper.warn("RelayServer", "Auth fail for player '" + n + "' from " + anonIp + ": Name already taken in session");
+                    callback.onEvent("auth_fail", n, "Name already taken");
+                    return;
+                }
+
                 if (!passwordHash.isEmpty()) {
                     String providedPwHash = pw != null ? sha256(pw) : "";
                     if (!CryptoHelper.constantTimeEquals(passwordHash, providedPwHash)) {
@@ -213,8 +260,17 @@ public class RelayServer {
                     }
                     msgCount++;
                     if (msgCount > 10) {
-                        LoggerHelper.warn("RelayServer", "Message rate limit exceeded by " + name + " (" + anonIp + ")");
+                        spamViolations++;
+                        LoggerHelper.warn("RelayServer", "Message rate limit exceeded by " + name + " (" + anonIp + ") - Violation " + spamViolations + "/5");
+                        if (spamViolations >= 5) {
+                            LoggerHelper.error("RelayServer", "Kicking player '" + name + "' for repeated rate limit violations.");
+                            sendEncrypted("{\"type\":\"system\",\"text\":\"Disconnected: Spam rate limit exceeded\"}");
+                            disconnect();
+                            break;
+                        }
                         continue;
+                    } else {
+                        spamViolations = Math.max(0, spamViolations - 1);
                     }
 
                     String decLine = CryptoHelper.decryptWithKey(line, ecdhKey);
