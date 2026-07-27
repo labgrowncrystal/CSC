@@ -22,7 +22,6 @@ public class RelayConnection {
 
     public CompletableFuture<Boolean> connectWithFallback(String publicHost, String lanHost, int port, String name, String password) {
         return CompletableFuture.supplyAsync(() -> {
-            // 1. Try public IP first
             if (publicHost != null && !publicHost.isEmpty()) {
                 LoggerHelper.info("ClientConnection", "Attempting connection to Public IP (" + publicHost + ":" + port + ")...");
                 if (trySocketConnect(publicHost, port, name, password)) {
@@ -30,7 +29,6 @@ public class RelayConnection {
                 }
             }
 
-            // 2. Try LAN IP if different
             if (lanHost != null && !lanHost.isEmpty() && !lanHost.equals(publicHost)) {
                 LoggerHelper.info("ClientConnection", "Public IP connection failed. Falling back to LAN IP (" + lanHost + ":" + port + ")...");
                 if (trySocketConnect(lanHost, port, name, password)) {
@@ -38,7 +36,6 @@ public class RelayConnection {
                 }
             }
 
-            // 3. Try Localhost if on same machine
             if (!"127.0.0.1".equals(publicHost) && !"127.0.0.1".equals(lanHost)) {
                 LoggerHelper.info("ClientConnection", "Falling back to Localhost (127.0.0.1:" + port + ")...");
                 if (trySocketConnect("127.0.0.1", port, name, password)) {
@@ -58,7 +55,7 @@ public class RelayConnection {
     private boolean trySocketConnect(String host, int port, String name, String password) {
         try {
             socket = new Socket();
-            socket.connect(new InetSocketAddress(host, port), 3000); // 3s timeout per IP
+            socket.connect(new InetSocketAddress(host, port), 3000);
             writer = new BufferedWriter(
                 new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
             BufferedReader reader = new BufferedReader(

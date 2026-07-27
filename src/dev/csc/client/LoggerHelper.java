@@ -26,7 +26,7 @@ public class LoggerHelper {
                 Files.newOutputStream(LOG_FILE, StandardOpenOption.CREATE, StandardOpenOption.APPEND),
                 StandardCharsets.UTF_8
             ), true);
-            log("INFO", "System", "=== CSC Logger Initialized ===");
+            log("INFO", "System", "=== CSC Logger Initialized (v1.3.0 Hardened) ===");
         } catch (Exception e) {
             System.err.println("[CSC Logger] Failed to initialize logger: " + e.getMessage());
         }

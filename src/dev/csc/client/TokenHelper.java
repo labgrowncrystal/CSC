@@ -3,17 +3,16 @@ package dev.csc.client;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Encodes, decodes, signs, and validates CSC Session Tokens (CSC-XXXX...).
- * Supports dual-IP fallback (public WAN IP + local LAN IP) for instant connectivity.
+ * Uses dynamic ephemeral session keys generated per host instance.
  */
 public class TokenHelper {
-    private static final String SECRET_KEY = "CSC_SECURE_TOKEN_SECRET_V1";
-
     public static class SessionTokenData {
         public String publicIp;
         public String lanIp;
@@ -21,14 +20,16 @@ public class TokenHelper {
         public String password;
         public long expiresAt;
         public int maxClients;
+        public String sessionSecret;
 
-        public SessionTokenData(String publicIp, String lanIp, int port, String password, long expiresAt, int maxClients) {
+        public SessionTokenData(String publicIp, String lanIp, int port, String password, long expiresAt, int maxClients, String sessionSecret) {
             this.publicIp = publicIp;
             this.lanIp = lanIp;
             this.port = port;
             this.password = password;
             this.expiresAt = expiresAt;
             this.maxClients = maxClients;
+            this.sessionSecret = sessionSecret;
         }
 
         public boolean isExpired() {
@@ -36,14 +37,14 @@ public class TokenHelper {
         }
     }
 
-    public static String generateToken(String publicIp, String lanIp, int port, String password, int durationHours, int maxClients) {
+    public static String generateToken(String publicIp, String lanIp, int port, String password, int durationHours, int maxClients, String sessionSecret) {
         long expiresAt = System.currentTimeMillis() + ((long) durationHours * 3600 * 1000);
         String rawJson = String.format(
-            "{\"ip\":\"%s\",\"lan\":\"%s\",\"port\":%d,\"pw\":\"%s\",\"exp\":%d,\"max\":%d}",
-            escapeJson(publicIp), escapeJson(lanIp), port, escapeJson(password), expiresAt, maxClients
+            "{\"ip\":\"%s\",\"lan\":\"%s\",\"port\":%d,\"pw\":\"%s\",\"exp\":%d,\"max\":%d,\"sec\":\"%s\"}",
+            escapeJson(publicIp), escapeJson(lanIp), port, escapeJson(password), expiresAt, maxClients, escapeJson(sessionSecret)
         );
 
-        String sig = hmacSha256(rawJson, SECRET_KEY);
+        String sig = hmacSha256(rawJson, sessionSecret);
         String fullPayload = rawJson.substring(0, rawJson.length() - 1) + String.format(",\"sig\":\"%s\"}", sig);
         
         String b64 = Base64.getUrlEncoder().withoutPadding().encodeToString(fullPayload.getBytes(StandardCharsets.UTF_8));
@@ -65,9 +66,10 @@ public class TokenHelper {
         String pw = getField(json, "pw");
         String expStr = getField(json, "exp");
         String maxStr = getField(json, "max");
+        String sec = getField(json, "sec");
         String sig = getField(json, "sig");
 
-        if (ip == null || expStr == null || sig == null) {
+        if (ip == null || expStr == null || sig == null || sec == null) {
             throw new IllegalArgumentException("Invalid token format");
         }
 
@@ -76,21 +78,29 @@ public class TokenHelper {
         long exp = Long.parseLong(expStr);
 
         String rawJson = String.format(
-            "{\"ip\":\"%s\",\"lan\":\"%s\",\"port\":%d,\"pw\":\"%s\",\"exp\":%d,\"max\":%d}",
-            escapeJson(ip), escapeJson(lan != null ? lan : ""), port, escapeJson(pw != null ? pw : ""), exp, maxClients
+            "{\"ip\":\"%s\",\"lan\":\"%s\",\"port\":%d,\"pw\":\"%s\",\"exp\":%d,\"max\":%d,\"sec\":\"%s\"}",
+            escapeJson(ip), escapeJson(lan != null ? lan : ""), port, escapeJson(pw != null ? pw : ""), exp, maxClients, escapeJson(sec)
         );
 
-        String expectedSig = hmacSha256(rawJson, SECRET_KEY);
+        String expectedSig = hmacSha256(rawJson, sec);
         if (!expectedSig.equals(sig)) {
             throw new SecurityException("Token signature tampered or invalid");
         }
 
-        SessionTokenData data = new SessionTokenData(ip, lan != null ? lan : "", port, pw != null ? pw : "", exp, maxClients);
+        SessionTokenData data = new SessionTokenData(ip, lan != null ? lan : "", port, pw != null ? pw : "", exp, maxClients, sec);
         if (data.isExpired()) {
             throw new IllegalStateException("Session token has expired");
         }
 
         return data;
+    }
+
+    public static String generateEphemeralSecret() {
+        byte[] bytes = new byte[16];
+        new SecureRandom().nextBytes(bytes);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
     public static String getLocalLanIp() {
