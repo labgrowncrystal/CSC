@@ -1,0 +1,25 @@
+{
+  "csc.help.title": "Clientside Chat — Befehlsübersicht",
+  "csc.help.host": "/csc host [passwort] [max_spieler] [stunden] — Starte Server & generiere Token",
+  "csc.help.join": "/csc join <token> — Beitreten per Token (Anonym & E2EE verschlüsselt)",
+  "csc.help.stop": "/csc stop — Stoppe deinen eigenen Server",
+  "csc.help.disconnect": "/csc disconnect — Trenne die aktuelle Verbindung",
+  "csc.help.token": "/csc token — Zeige dein aktives Session Token",
+  "csc.help.status": "/csc status — Zeige Host-, E2EE- & Log-Status",
+  "csc.help.logs": "/csc logs — Zeige Pfad der Log-Dateien",
+  "csc.help.ip": "/ip [get] — Zeige deine öffentliche IP-Adresse",
+  "csc.help.message": "#nachricht — Sende eine AES-256-GCM verschlüsselte Nachricht",
+
+  "csc.chat.joined": "%s ist dem privaten Chat beigetreten.",
+  "csc.chat.left": "%s hat den privaten Chat verlassen.",
+  "csc.chat.auth_fail": "%s konnte sich nicht authentifizieren.",
+  "csc.chat.connected": "✔ Erfolgreich verbunden (AES-256-GCM E2EE)! Schreibe #nachricht zum Chatten.",
+  "csc.chat.disconnected": "Verbindung getrennt: %s",
+  "csc.chat.not_connected": "Nicht verbunden und hostest nicht! Nutze /csc host oder /csc join <token>",
+  "csc.chat.already_hosting": "Du hostest bereits! Nutze zuerst /csc stop.",
+  "csc.chat.not_hosting": "Du hostest aktuell nicht.",
+  "csc.chat.host_started": "✔ Server gestartet! (AES-256-GCM E2EE, Max. %d Spieler, %dh gültig)",
+  "csc.chat.token_label": "Session Token: %s",
+  "csc.chat.token_sub": "(Klicken zum Kopieren. Anonym & Ende-zu-Ende verschlüsselt!)",
+  "csc.chat.ip_label": "Deine öffentliche IP: %s"
+}

@@ -1,0 +1,25 @@
+{
+  "csc.help.title": "Clientside Chat — Commandes",
+  "csc.help.host": "/csc host [mot_de_passe] [max_joueurs] [heures] — Héberger un serveur & générer Token",
+  "csc.help.join": "/csc join <token> — Rejoindre anonymement via Token (E2EE actif)",
+  "csc.help.stop": "/csc stop — Arrêter l'hébergement",
+  "csc.help.disconnect": "/csc disconnect — Se déconnecter",
+  "csc.help.token": "/csc token — Afficher le Token actif",
+  "csc.help.status": "/csc status — Afficher l'état du serveur et E2EE",
+  "csc.help.logs": "/csc logs — Afficher le chemin des fichiers journaux",
+  "csc.help.ip": "/ip [get] — Afficher votre IP publique",
+  "csc.help.message": "#message — Envoyer un message chiffré AES-256-GCM",
+
+  "csc.chat.joined": "%s a rejoint le chat privé.",
+  "csc.chat.left": "%s a quitté le chat privé.",
+  "csc.chat.auth_fail": "Échec d'authentification pour %s.",
+  "csc.chat.connected": "✔ Connecté avec succès (AES-256-GCM E2EE) ! Tapez #message.",
+  "csc.chat.disconnected": "Déconnecté : %s",
+  "csc.chat.not_connected": "Non connecté ! Utilisez /csc host ou /csc join <token>",
+  "csc.chat.already_hosting": "Vous hébergez déjà ! Utilisez d'abord /csc stop.",
+  "csc.chat.not_hosting": "Vous n'hébergez pas actuellement.",
+  "csc.chat.host_started": "✔ Serveur démarré (AES-256-GCM E2EE, Max. %d joueurs, %dh valide)",
+  "csc.chat.token_label": "Jeton de session : %s",
+  "csc.chat.token_sub": "(Cliquez pour copier. Chiffré de bout en bout !)",
+  "csc.chat.ip_label": "Votre IP publique : %s"
+}

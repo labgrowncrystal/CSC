@@ -1,0 +1,25 @@
+{
+  "csc.help.title": "Clientside Chat — Список команд",
+  "csc.help.host": "/csc host [пароль] [макс_игроков] [часы] — Создать сервер и сгенерировать Токен",
+  "csc.help.join": "/csc join <токен> — Подключиться по Токену (E2EE шифрование)",
+  "csc.help.stop": "/csc stop — Остановить сервер",
+  "csc.help.disconnect": "/csc disconnect — Отключиться",
+  "csc.help.token": "/csc token — Показать активный Токен",
+  "csc.help.status": "/csc status — Статус подключения и E2EE",
+  "csc.help.logs": "/csc logs — Показать путь к логам",
+  "csc.help.ip": "/ip [get] — Показать ваш публичный IP",
+  "csc.help.message": "#сообщение — Отправить зашифрованное сообщение",
+
+  "csc.chat.joined": "%s присоединился к приватному чату.",
+  "csc.chat.left": "%s покинул приватный чат.",
+  "csc.chat.auth_fail": "Ошибка аутентификации для %s.",
+  "csc.chat.connected": "✔ Успешно подключено (AES-256-GCM E2EE)! Наберите #сообщение.",
+  "csc.chat.disconnected": "Отключено: %s",
+  "csc.chat.not_connected": "Вы не подключены! Используйте /csc host или /csc join <токен>",
+  "csc.chat.already_hosting": "Вы уже создали сервер! Сначала используйте /csc stop.",
+  "csc.chat.not_hosting": "Вы не создавали сервер.",
+  "csc.chat.host_started": "✔ Сервер запущен (AES-256-GCM E2EE, Макс. %d игроков, %dh)",
+  "csc.chat.token_label": "Токен сессии: %s",
+  "csc.chat.token_sub": "(Нажмите для копирования. Сквозное шифрование!)",
+  "csc.chat.ip_label": "Ваш публичный IP: %s"
+}

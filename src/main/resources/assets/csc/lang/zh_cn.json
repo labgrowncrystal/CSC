@@ -1,0 +1,25 @@
+{
+  "csc.help.title": "Clientside Chat — 指令列表",
+  "csc.help.host": "/csc host [密码] [最大人数] [时长] — 创建服务器并生成令牌",
+  "csc.help.join": "/csc join <令牌> — 使用令牌匿名加入 (E2EE加密)",
+  "csc.help.stop": "/csc stop — 停止主机",
+  "csc.help.disconnect": "/csc disconnect — 断开连接",
+  "csc.help.token": "/csc token — 显示当前令牌",
+  "csc.help.status": "/csc status — 显示主机和加密状态",
+  "csc.help.logs": "/csc logs — 显示日志路径",
+  "csc.help.ip": "/ip [get] — 显示你的公网IP",
+  "csc.help.message": "#消息 — 发送AES-256-GCM加密消息",
+
+  "csc.chat.joined": "%s 加入了私密聊天。",
+  "csc.chat.left": "%s 离开了私密聊天。",
+  "csc.chat.auth_fail": "%s 身份验证失败。",
+  "csc.chat.connected": "✔ 连接成功 (AES-256-GCM E2EE)！输入 #消息 进行聊天。",
+  "csc.chat.disconnected": "已断开连接：%s",
+  "csc.chat.not_connected": "未连接！请使用 /csc host 或 /csc join <令牌>",
+  "csc.chat.already_hosting": "你已经在主机运行中！请先使用 /csc stop。",
+  "csc.chat.not_hosting": "当前未在运行主机。",
+  "csc.chat.host_started": "✔ 主机已启动！(AES-256-GCM E2EE，最多 %d 人，有效 %d 小时)",
+  "csc.chat.token_label": "会话令牌：%s",
+  "csc.chat.token_sub": "(点击复制。端到端加密！)",
+  "csc.chat.ip_label": "你的公网IP：%s"
+}

@@ -1,0 +1,25 @@
+{
+  "csc.help.title": "Clientside Chat — Comandos",
+  "csc.help.host": "/csc host [contraseña] [max_jugadores] [horas] — Crear servidor y generar Token",
+  "csc.help.join": "/csc join <token> — Unirse mediante Token (E2EE activo)",
+  "csc.help.stop": "/csc stop — Detener servidor",
+  "csc.help.disconnect": "/csc disconnect — Desconectarse",
+  "csc.help.token": "/csc token — Mostrar Token activo",
+  "csc.help.status": "/csc status — Estado del servidor y E2EE",
+  "csc.help.logs": "/csc logs — Mostrar ruta de archivos de registro",
+  "csc.help.ip": "/ip [get] — Mostrar tu IP pública",
+  "csc.help.message": "#mensaje — Enviar mensaje encriptado AES-256-GCM",
+
+  "csc.chat.joined": "%s se unió al chat privado.",
+  "csc.chat.left": "%s salió del chat privado.",
+  "csc.chat.auth_fail": "Error de autenticación para %s.",
+  "csc.chat.connected": "✔ ¡Conectado con éxito (AES-256-GCM E2EE)! Escribe #mensaje.",
+  "csc.chat.disconnected": "Desconectado: %s",
+  "csc.chat.not_connected": "¡No estás conectado! Usa /csc host o /csc join <token>",
+  "csc.chat.already_hosting": "¡Ya estás alojando! Usa /csc stop primero.",
+  "csc.chat.not_hosting": "No estás alojando actualmente.",
+  "csc.chat.host_started": "✔ Servidor iniciado (AES-256-GCM E2EE, Máx. %d jugadores, %dh válido)",
+  "csc.chat.token_label": "Token de sesión: %s",
+  "csc.chat.token_sub": "(Haz clic para copiar. ¡Encriptado de extremo a extremo!)",
+  "csc.chat.ip_label": "Tu IP pública: %s"
+}
