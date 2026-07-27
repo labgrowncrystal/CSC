@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Privacy-focused Logger for CSC.
- * Features: Automatic IP Anonymization, Token Masking, and Log File Size Rotation (Max 250 KB).
+ * Features: Universal Regex IP Anonymization, Token Masking, and Log File Size Rotation (Max 250 KB).
  */
 public class LoggerHelper {
     private static final Path LOG_DIR = Paths.get(
@@ -23,7 +23,7 @@ public class LoggerHelper {
         try {
             Files.createDirectories(LOG_DIR);
             rotateLogIfNeeded();
-            log("INFO", "System", "=== CSC Logger Initialized (v1.4.3 Privacy Audit Edition) ===");
+            log("INFO", "System", "=== CSC Logger Initialized (v1.4.4 Complete Leak Protection) ===");
         } catch (Exception e) {
             System.err.println("[CSC Logger] Failed to initialize logger: " + e.getMessage());
         }
@@ -75,7 +75,7 @@ public class LoggerHelper {
         return "[REDACTED_PRIVACY]";
     }
 
-    private static String anonymizeSensitiveData(String msg) {
+    public static String anonymizeSensitiveData(String msg) {
         if (msg == null) return "";
         // Mask tokens in log strings
         if (msg.contains("CSC-")) {
@@ -85,6 +85,8 @@ public class LoggerHelper {
             String rawToken = msg.substring(idx, endIdx);
             msg = msg.replace(rawToken, maskToken(rawToken));
         }
+        // Universal Regex Mask for any IPv4 address (e.g. 192.168.1.100 -> 192.168.1.***)
+        msg = msg.replaceAll("\\b((?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b", "$1***");
         return msg;
     }
 

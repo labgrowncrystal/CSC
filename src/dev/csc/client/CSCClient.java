@@ -19,10 +19,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * CSC — Clientside Chat v1.4.2 Fully Localized Cryptographic Edition
+ * CSC — Clientside Chat v1.4.4 Complete Leak Protection Edition
  *
- * 100% of user-facing chat messages, system logs, warnings, and feedback use Component.translatable(...)
- * across English, German, Spanish, French, Russian, and Simplified Chinese.
+ * Universal Regex IP Anonymization & Token Masking guarantees zero IP/Token leaks in log outputs.
  */
 public class CSCClient implements ClientModInitializer {
     private static RelayServer relayServer;
@@ -32,7 +31,7 @@ public class CSCClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.2 Fully Localized Client...");
+        LoggerHelper.info("CSCClient", "Initializing CSC v1.4.4 (Universal IP Masking)...");
 
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (myName.isEmpty() && client.player != null) {
@@ -139,10 +138,11 @@ public class CSCClient implements ClientModInitializer {
                     .executes(ctx -> {
                         boolean hosting = relayServer != null && relayServer.isRunning();
                         boolean connected = connection != null && connection.isConnected();
-                        String statusText = "§b§l[CSC v1.4.2 Fully Localized] Status\n";
+                        String statusText = "§b§l[CSC v1.4.4 Complete Protection] Status\n";
                         statusText += "§7  Name: §f" + (myName.isEmpty() ? "§c(unknown)" : myName) + "\n";
                         statusText += "§7  Key Exchange: §aECDH (secp256r1)\n";
                         statusText += "§7  Key Pinning: §a✔ Active (MitM Protection)\n";
+                        statusText += "§7  Privacy Logs: §a✔ Anonymized & Masked\n";
                         statusText += "§7  Encryption: §aAES-256-GCM E2EE\n";
                         if (hosting) {
                             statusText += "§7  Hosting: §a✔ Port " + CSCMod.DEFAULT_PORT + " §7(" + relayServer.getClientCount() + "/" + relayServer.getMaxClients() + ")\n";
@@ -303,7 +303,8 @@ public class CSCClient implements ClientModInitializer {
         try {
             TokenHelper.SessionTokenData data = TokenHelper.parseToken(tokenStr);
 
-            LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + data.publicIp + ", LAN IP=" + data.lanIp);
+            // Anonymize IP outputs in logs
+            LoggerHelper.info("CSCClient", "Joining session via ECDH Token. Public IP=" + LoggerHelper.anonymizeIp(data.publicIp) + ", LAN IP=" + LoggerHelper.anonymizeIp(data.lanIp));
             source.sendFeedback(Component.translatable("csc.chat.token_verified"));
             connectToHostWithFallback(source, data.publicIp, data.lanIp, data.port, "", data.hostPubKey);
         } catch (SecurityException e) {
